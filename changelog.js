@@ -16,6 +16,9 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.20.1", data:"2026-09-17", titulo:"Ponto 26: correção na leitura do PDF de classificação final",
+    itens:["Editais com a palavra Curitiba em uma linha do cabeçalho agora têm a tabela de classificação reconhecida corretamente.",
+            "O fim da tabela pelo bloco de assinatura passa a ser considerado somente após o primeiro registro de candidato."] },
   { v:"3.20", data:"2026-08-21", titulo:"Histórico de versões: clique no número da versão para ver o que mudou",
     itens:["O número da versão, no canto do cabeçalho, passou a abrir este histórico.",
             "As versões anteriores foram recuperadas a partir do histórico do projeto; as novas passam a ser descritas junto com cada publicação."] },

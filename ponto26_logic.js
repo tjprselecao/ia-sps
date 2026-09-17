@@ -147,8 +147,11 @@
   function pdfTextToTabela1Lines(rawText){
     const allLines = rawText.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').map(l => l.trim()).filter(l => l !== '');
 
-    // a tabela termina onde começa o bloco de assinatura ("Curitiba, ...")
-    const fimIdx = allLines.findIndex(l => /^curitiba\b/i.test(l));
+    // A tabela termina no bloco de assinatura ("Curitiba, ..."), mas só
+    // depois do primeiro registro. "CURITIBA" também pode aparecer sozinho
+    // no cabeçalho da unidade, antes da tabela, e não deve descartá-la.
+    const inicioIdx = allLines.findIndex(l => PDF_ROW_START_RE.test(l));
+    const fimIdx = allLines.findIndex((l, i) => i > inicioIdx && /^curitiba\b/i.test(l));
     const scanLines = fimIdx === -1 ? allLines : allLines.slice(0, fimIdx);
 
     const rows = [];
