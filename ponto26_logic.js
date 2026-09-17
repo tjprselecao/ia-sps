@@ -86,8 +86,9 @@
   // Rather than splitting on delimiters (fragile when names have single spaces and the
   // paste is plain aligned text, not real tabs), each data line is matched against a
   // pattern that recognizes the two leading numbers, a trailing decimal (NOTA), and an
-  // optional trailing X.X.X code (RESERVA) — everything in between is the NOME.
-  const ROW_RE = /^(\d+)\s+(\d+)\s+(.+?)\s+(\d{1,3}(?:[.,]\d{1,2})?)(?:\s+(\d(?:[.,]\d){1,3}))?\s*$/;
+  // optional trailing X.X.X codes (RESERVA, separated by commas) — everything
+  // in between is the NOME. Keep all codes for the existing quota checks.
+  const ROW_RE = /^(\d+)\s+(\d+)\s+(.+?)\s+(\d{1,3}(?:[.,]\d{1,2})?)(?:\s+(\d(?:[.,]\d){1,3}(?:\s*,\s*\d(?:[.,]\d){1,3})*))?\s*$/;
 
   function parseTabela1(text){
     const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n').map(l=>l.trim()).filter(l => l !== '');
@@ -141,7 +142,7 @@
   // ela pertence ao próximo registro, cujo nome ainda vai começar.
   function remainderIncompleto(remainder){
     const r = (remainder || '').trim();
-    return r === '' || /^\d{1,3}[.,]\d{1,2}(?:\s+\d(?:[.,]\d){1,3})?$/.test(r);
+    return r === '' || /^\d{1,3}[.,]\d{1,2}(?:\s+\d(?:[.,]\d){1,3}(?:\s*,\s*\d(?:[.,]\d){1,3})*)?$/.test(r);
   }
 
   function pdfTextToTabela1Lines(rawText){

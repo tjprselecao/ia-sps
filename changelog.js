@@ -16,6 +16,9 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.20.2", data:"2026-09-17", titulo:"Ponto 26: leitura de candidatos com múltiplas reservas no edital",
+    itens:["Linhas com mais de um código de reserva separado por vírgula agora são reconhecidas, inclusive quando há espaços ao redor da vírgula.",
+            "Todos os códigos de reserva são preservados na leitura, inclusive para nomes quebrados em mais de uma linha."] },
   { v:"3.20.1", data:"2026-09-17", titulo:"Ponto 26: correção na leitura do PDF de classificação final",
     itens:["Editais com a palavra Curitiba em uma linha do cabeçalho agora têm a tabela de classificação reconhecida corretamente.",
             "O fim da tabela pelo bloco de assinatura passa a ser considerado somente após o primeiro registro de candidato."] },
