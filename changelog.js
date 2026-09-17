@@ -16,6 +16,9 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.20.3", data:"2026-09-17", titulo:"Ponto 26: reconhecimento de dupla reserva sem vírgula",
+    itens:["Códigos de reserva separados apenas por espaços agora também são reconhecidos, evitando que o candidato seja ignorado na geração do CSV.",
+            "Mantido o reconhecimento de reservas separadas por vírgula e de nomes quebrados em mais de uma linha."] },
   { v:"3.20.2", data:"2026-09-17", titulo:"Ponto 26: leitura de candidatos com múltiplas reservas no edital",
     itens:["Linhas com mais de um código de reserva separado por vírgula agora são reconhecidas, inclusive quando há espaços ao redor da vírgula.",
             "Todos os códigos de reserva são preservados na leitura, inclusive para nomes quebrados em mais de uma linha."] },
