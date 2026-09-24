@@ -16,6 +16,11 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.21.1", data:"2026-09-24", titulo:"Edital de Abertura: prazo da prova on-line lido do formulário de abertura",
+    itens:["O prazo de disponibilização da prova on-line passa a ser preenchido a partir da resposta \"Prazo em horas para realização da prova\" do formulário da unidade; sem resposta, o campo fica em branco.",
+            "Essa resposta deixou de ser usada como substituta da duração da prova, que vem apenas de \"Quantas horas o candidato terá para realizar a prova\" (sem resposta, mantém 03h00min).",
+            "A leitura dos dois campos reconhece diferentes formas de escrita: \"3\", \"03 horas\", \"3 (três) horas\", \"duas horas e meia\", \"meia hora\", \"1 dia\" e intervalos como \"das 9h às 12h\".",
+            "Quando a resposta não pode ser interpretada, o campo fica em branco e um aviso mostra o texto informado pela unidade."] },
   { v:"3.21", data:"2026-09-24", titulo:"Edital de Abertura: prazo de disponibilização da prova on-line no item 5.2",
     itens:["Novo campo \"Prazo de disponibilização da prova on-line\", exibido só na modalidade On-line, entre a composição e a duração da prova.",
             "O item 5.2 do modelo on-line passa a informar por quanto tempo a prova fica disponível (ex.: \"pelo prazo de 4 horas e 30 minutos\"); sem prazo válido, mantém a redação anterior.",

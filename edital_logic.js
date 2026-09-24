@@ -183,13 +183,46 @@ function lerDuracao(v){
   return {h:h, m:mi};
 }
 function fmtDuracao(o){ return o ? String(o.h).padStart(2,'0')+'h'+String(o.m).padStart(2,'0')+'min' : ''; }
-function duracaoFmt(h){
-  const o=lerDuracao(h);
-  if(o) return fmtDuracao(o);
-  const m=String(h||'').match(/\d+/);
-  const n=m?parseInt(m[0],10):0;
-  if(!n) return '';
-  return String(n).padStart(2,'0')+'h00min';
+/* Duração escrita livremente pela unidade no formulário de abertura (PDF):
+   "3", "03 horas", "3 (três) horas", "três horas", "duas horas e trinta
+   minutos", "uma hora e meia", "meia hora", "1 dia", "das 9h às 12h",
+   "das 09:00 às 12:30". Não reconhecido -> null (quem chama avisa). */
+const NUM_EXTENSO = {um:1,uma:1,dois:2,duas:2,tres:3,quatro:4,cinco:5,seis:6,sete:7,oito:8,nove:9,dez:10,
+  onze:11,doze:12,treze:13,quatorze:14,catorze:14,quinze:15,dezesseis:16,dezessete:17,dezoito:18,dezenove:19,
+  vinte:20,trinta:30,quarenta:40,cinquenta:50,sessenta:60,setenta:70,oitenta:80,noventa:90};
+function lerDuracaoTexto(txt){
+  let s=String(txt==null?'':txt).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/\s+/g,' ').trim().replace(/[.;]$/,'').trim();
+  if(!s || s==='-') return null;
+  const direto=lerDuracao(s);
+  if(direto) return direto;
+  // intervalo de horário: "das 9h às 12h", "entre 14h e 17h30", "09:00 - 12:00"
+  const H='(\\d{1,2})(?:\\s*(?:h|:)\\s*(\\d{2})?)?\\s*(?:min)?';
+  const iv=s.match(new RegExp('(?:das?|entre)\\s*'+H+'\\s*(?:as|a|ate|e|-|–)\\s*'+H))
+        || s.match(/(\d{1,2}):(\d{2})\s*(?:as|a|ate|-|–)\s*(\d{1,2}):(\d{2})/);
+  if(iv){
+    const ini=(+iv[1])*60+(+(iv[2]||0)), fim=(+iv[3])*60+(+(iv[4]||0));
+    if(+iv[1]<=24 && +iv[3]<=24 && +(iv[2]||0)<60 && +(iv[4]||0)<60){
+      let tot=fim-ini; if(tot<=0) tot+=24*60;
+      return {h:Math.floor(tot/60), m:tot%60};
+    }
+  }
+  // números por extenso -> dígitos; "3 (tres) horas" -> "3 horas"
+  s=s.replace(/(\d+)\s*\([^)]*\)/g,'$1');
+  const pal=Object.keys(NUM_EXTENSO).join('|');
+  s=s.replace(new RegExp('\\b(vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa) e ('+pal+')\\b','g'),
+    (m,a,b)=>String(NUM_EXTENSO[a]+(NUM_EXTENSO[b]<10?NUM_EXTENSO[b]:0)));
+  s=s.replace(new RegExp('\\b('+pal+')\\b','g'),m=>String(NUM_EXTENSO[m]));
+  let min=0, achou=false, m;
+  if((m=s.match(/(\d+)\s*dias?\b/))){ min+=(+m[1])*1440; achou=true; }
+  if((m=s.match(/(\d+)\s*(?:horas?|hrs?|hs|h)(?![a-z])(?:\s*(\d{1,2})(?!\s*\d)(?!\s*(?:dias?|horas?|h)))?/))){
+    min+=(+m[1])*60+(+(m[2]||0)); achou=true;
+  }
+  if((m=s.match(/(\d+)\s*(?:minutos?|min)\b/)) && !(m.index>0 && /h\s*$/.test(s.slice(0,m.index)))){ min+=(+m[1]); achou=true; }
+  if(/\be meia\b/.test(s)){ min+=30; achou=true; }
+  else if(/\bmeia hora\b/.test(s)){ min+=30; achou=true; }
+  if(!achou || !min) return null;
+  return {h:Math.floor(min/60), m:min%60};
 }
 // "04h30min" -> "4 horas e 30 minutos" | "01h00min" -> "1 hora" | inválido/zerado -> ''
 function prazoExtenso(v){
@@ -432,8 +465,20 @@ function aplicarDados(d, avisos){
     if(m){ const n=parseInt(m[0],10);
       values.INSCRICOES_SUBITEM='As inscrições ficarão disponíveis por '+n+' ('+extensoInt(n)+') dias na página do processo seletivo, no portal do TJPR.'; }
   }
-  const dur = d.horas_prova || d.prazo_prova;
-  if(dur && duracaoFmt(dur)) values.DURACAO_PROVA=duracaoFmt(dur);
+  // "Quantas horas o candidato terá..." -> Duração da prova (sem resposta, fica o padrão);
+  // "Prazo em horas para realização da prova" -> prazo de disponibilização (sem resposta, em branco)
+  const temResp = v => !!v && v.trim()!=='-';
+  if(temResp(d.horas_prova)){
+    const o=lerDuracaoTexto(d.horas_prova);
+    if(o) values.DURACAO_PROVA=fmtDuracao(o);
+    else avisos.push('Duração da prova informada pela unidade ("'+d.horas_prova+'") não foi reconhecida — preencha o campo "Duração da prova" manualmente.');
+  }
+  values.PRAZO_DISPONIBILIZACAO='';
+  if(temResp(d.prazo_prova)){
+    const o=lerDuracaoTexto(d.prazo_prova);
+    if(o) values.PRAZO_DISPONIBILIZACAO=fmtDuracao(o);
+    else if(axes.modal==='ON') avisos.push('Prazo para realização da prova informado pela unidade ("'+d.prazo_prova+'") não foi reconhecido — preencha o campo "Prazo de disponibilização da prova on-line" manualmente.');
+  }
   values.COMPOSICAO_PROVA = sugestaoComposicao(d.q_objetivas, d.q_discursivas, d.peso_discursivas) || values.COMPOSICAO_PROVA;
   if(values.COMPOSICAO_PROVA && d.q_objetivas && d.q_discursivas && d.peso_discursivas)
     avisos.push('Composição da prova sugerida assumindo nota total 10 — confira o peso das questões objetivas.');
