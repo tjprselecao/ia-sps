@@ -16,6 +16,10 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.21", data:"2026-09-24", titulo:"Edital de Abertura: prazo de disponibilização da prova on-line no item 5.2",
+    itens:["Novo campo \"Prazo de disponibilização da prova on-line\", exibido só na modalidade On-line, entre a composição e a duração da prova.",
+            "O item 5.2 do modelo on-line passa a informar por quanto tempo a prova fica disponível (ex.: \"pelo prazo de 4 horas e 30 minutos\"); sem prazo válido, mantém a redação anterior.",
+            "Os campos de prazo e de duração da prova passam a ser formatados ao sair do campo: 5 vira 05h00min, 430 ou 4:30 viram 04h30min; valores inválidos ou zerados são apagados."] },
   { v:"3.20.3", data:"2026-09-17", titulo:"Ponto 26: reconhecimento de dupla reserva sem vírgula",
     itens:["Códigos de reserva separados apenas por espaços agora também são reconhecidos, evitando que o candidato seja ignorado na geração do CSV.",
             "Mantido o reconhecimento de reservas separadas por vírgula e de nomes quebrados em mais de uma linha."] },

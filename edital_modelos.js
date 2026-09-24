@@ -413,7 +413,7 @@ const EDITAL_PARAS = [
 },
 {
 "l": 1,
-"h": "A prova será realizada na modalidade à distância, e ficará disponível em data e horário a serem divulgados por meio de Edital de Ensalamento, a ser disponibilizado na respectiva página do processo seletivo, no portal do TJPR.",
+"h": "A prova será realizada na modalidade à distância, e ficará disponível, pelo prazo de {{PRAZO_DISPONIBILIZACAO}}, em data e horário a serem divulgados por meio de Edital de Ensalamento, a ser disponibilizado na respectiva página do processo seletivo, no portal do TJPR.",
 "c": {
 "modal": [
 "ON"

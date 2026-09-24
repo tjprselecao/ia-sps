@@ -41,7 +41,8 @@ const FIELDS = {
   PERIODO_INSCRICOES: {grupo:'corpo', label:'Item 4.3 — Disponibilidade das inscrições', type:'preset', opts:['a partir do quinto dia útil subsequente à publicação deste edital no Diário da Justiça Eletrônico (e-DJ), conforme o artigo 12 do Decreto Judiciário nº 345/2019','das 00h00min de [DATA DEFINIR] às 23h59min de [DATA DEFINIR]'], def:'a partir do quinto dia útil subsequente à publicação deste edital no Diário da Justiça Eletrônico (e-DJ), conforme o artigo 12 do Decreto Judiciário nº 345/2019', hint:'O texto do modelo original usa datas fixas; a opção do "quinto dia útil" segue os editais publicados recentemente'},
   INSCRICOES_SUBITEM: {grupo:'corpo', full:true, label:'Item 4.3.1 — Prazo das inscrições (deixe vazio para omitir o subitem)', type:'text', def:''},
   COMPOSICAO_PROVA:   {grupo:'prova', label:'Composição da prova (item 5.2)', type:'textarea', def:'', hint:'Ex.: 10 (dez) questões objetivas avaliadas em 0,5 (zero vírgula cinco) ponto cada e 1 (uma) questão discursiva avaliada em 5 (cinco) pontos'},
-  DURACAO_PROVA:      {grupo:'prova', label:'Duração da prova', type:'text', def:'03h00min', hint:'Formato: 00h00min (ex.: 04h00min)'},
+  PRAZO_DISPONIBILIZACAO:{grupo:'prova', label:'Prazo de disponibilização da prova on-line', type:'text', fmt:'duracao', def:'', hint:'Formato: 00h00min (ex.: 04h00min)', show:a=>a.modal==='ON'},
+  DURACAO_PROVA:      {grupo:'prova', label:'Duração da prova', type:'text', fmt:'duracao', def:'03h00min', hint:'Formato: 00h00min (ex.: 04h00min)'},
   DATA_PROVA_PRESENCIAL:{grupo:'prova', label:'Data, horário e local da prova presencial', type:'preset', opts:['A data, o horário e o local de aplicação da prova serão divulgados por meio de Edital de Ensalamento, a ser disponibilizado na respectiva página do processo seletivo, no portal do TJPR.','A data, o horário e o local de aplicação da prova serão divulgados por meio de documento oficial de ensalamento.','A prova será realizada presencialmente em 00/00/0000, das 00h00min às 00h00min, no [LOCAL], situado à [ENDEREÇO].','A prova será realizada presencialmente em 00/00/0000, das 00h00min às 00h00min. O local de aplicação da prova será divulgado por meio de documento oficial de ensalamento.'], def:'A data, o horário e o local de aplicação da prova serão divulgados por meio de Edital de Ensalamento, a ser disponibilizado na respectiva página do processo seletivo, no portal do TJPR.', show:a=>a.modal==='PR'},
   LIMITE_CONVOCADOS:  {grupo:'prova', label:'Item 6.1 — Quem será convocado para a entrevista', type:'preset', opts:LIMITES_61, def:'a todos os candidatos que atingirem a nota mínima', show:a=>a.entrev==='S'},
   DESEMPATE_INTRO:    {grupo:'prova', full:true, label:'Item 6.1.1 — Situação de empate (início do item)', type:'text', def:'Havendo candidatos empatados com a nota de corte do último classificado', show:a=>a.entrev==='S'},
@@ -159,11 +160,46 @@ function sugestaoComposicao(qObj, qDis, pesoDis){
   }
   return partes.join(' e ');
 }
+/* Durações no formato 00h00min (prazo de disponibilização e duração da prova).
+   Aceita o que o usuário costuma digitar: "5", "05", "430", "0430", "4:30",
+   "4.30", "4h", "4h30", "4h30min", "4 horas e 30 minutos", "30min". Só dígitos: até 2 são
+   horas; 3 ou 4 são horas + minutos. Diferente do horário do Ponto 14, a hora
+   não para em 23 (prazos de 48h00min são válidos). Zerado ou inválido -> null. */
+function lerDuracao(v){
+  const s=String(v==null?'':v).trim().toLowerCase();
+  if(!s) return null;
+  let h, mi, m;
+  if(/^\d+$/.test(s)){
+    if(s.length<=2){ h=+s; mi=0; }
+    else if(s.length===3){ h=+s.slice(0,1); mi=+s.slice(1); }
+    else if(s.length===4){ h=+s.slice(0,2); mi=+s.slice(2); }
+    else return null;
+  } else if((m=s.match(/^(\d{1,3})\s*(?:h(?:oras?)?|:|\.)\s*(?:e\s*)?(?:(\d{1,2})\s*(?:min(?:utos?)?)?)?$/))){
+    h=+m[1]; mi=+(m[2]||0);
+  } else if((m=s.match(/^(\d{1,2})\s*min(?:utos?)?$/))){
+    h=0; mi=+m[1];
+  } else return null;
+  if(mi>59 || (!h && !mi)) return null;
+  return {h:h, m:mi};
+}
+function fmtDuracao(o){ return o ? String(o.h).padStart(2,'0')+'h'+String(o.m).padStart(2,'0')+'min' : ''; }
 function duracaoFmt(h){
+  const o=lerDuracao(h);
+  if(o) return fmtDuracao(o);
   const m=String(h||'').match(/\d+/);
   const n=m?parseInt(m[0],10):0;
   if(!n) return '';
   return String(n).padStart(2,'0')+'h00min';
+}
+// "04h30min" -> "4 horas e 30 minutos" | "01h00min" -> "1 hora" | inválido/zerado -> ''
+function prazoExtenso(v){
+  const o=lerDuracao(v);
+  if(!o) return '';
+  const h=o.h, mi=o.m;
+  const partes=[];
+  if(h) partes.push(h+(h===1?' hora':' horas'));
+  if(mi) partes.push(mi+(mi===1?' minuto':' minutos'));
+  return partes.join(' e ');
 }
 
 /* ============================== LEITURA DO PDF ============================== */
@@ -513,6 +549,19 @@ function renderConfirma(avisos){
     }
     atualizarDraftNota();
   }));
+  // campos de duração (00h00min): normaliza só ao sair do campo, para não
+  // atrapalhar a digitação — "5" vira "05h00min"; inválido ou zerado esvazia
+  box.querySelectorAll('[data-campo]').forEach(el=>{
+    const f=FIELDS[el.dataset.campo];
+    if(!f || f.fmt!=='duracao') return;
+    el.addEventListener('blur',()=>{
+      if(!el.value.trim()) return;
+      const novo=fmtDuracao(lerDuracao(el.value));
+      if(novo===el.value) return;
+      el.value=novo;
+      el.dispatchEvent(new Event('input',{bubbles:true}));
+    });
+  });
   box.querySelectorAll('[data-check]').forEach(el=>el.addEventListener('change',()=>{ values[el.dataset.check]=el.checked; }));
   box.querySelectorAll('[data-preset]').forEach(el=>el.addEventListener('change',()=>{
     if(!el.value) return;
@@ -547,6 +596,12 @@ function subTokens(h){
   // remoção do trecho de semestres quando vazios
   if(!values.PERIODO_INICIAL && !values.PERIODO_FINAL){
     h=h.replace(/, cursando do \{\{PERIODO_INICIAL\}\} ao \{\{PERIODO_FINAL\}\} semestre no ato da admissão/g,'');
+  }
+  // item 5.2 (on-line): sem prazo de disponibilização válido, volta à redação sem o trecho
+  if(h.indexOf('{{PRAZO_DISPONIBILIZACAO}}')!==-1){
+    const prazo=prazoExtenso(values.PRAZO_DISPONIBILIZACAO);
+    h=prazo ? h.replace('{{PRAZO_DISPONIBILIZACAO}}',prazo)
+            : h.replace(', pelo prazo de {{PRAZO_DISPONIBILIZACAO}},','');
   }
   // item 4.3: quando o texto começa com "a partir", a preposição "das" do modelo sai
   if(/^a partir/i.test(values.PERIODO_INSCRICOES||'')){
