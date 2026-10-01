@@ -16,6 +16,13 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.21.2", data:"2026-10-01", titulo:"Edital de Abertura: cópia sem fundo cinza no SEI e leitura das quantidades de candidatos",
+    itens:["Os botões \"Copiar\" e \"Copiar tudo\" (e o Ctrl+C dentro dos quadros) passam a copiar o texto sem o fundo cinza da página, que o novo editor do SEI exibia ao colar.",
+            "No \"Copiar tudo\", um parágrafo em branco separa os blocos, como no PDF.",
+            "A opção \"Outra quantidade\" do formulário passa a ser aplicada: o número de \"Informar quantidade\" (\"15\", \"15 (quinze)\", \"quinze\") preenche os itens de entrevista e de classificação final.",
+            "Qualquer quantidade é aceita, não só 5, 10, 15 ou 20; quando a opção marcada e o número informado divergem, vale o número informado e um aviso pede conferência.",
+            "Formulários sem o bloco da entrevista não desalinham mais a leitura da classificação final, e uma quantidade não reconhecida gera aviso em vez de ficar no padrão em silêncio.",
+            "Local de prova \"a definir\" não gera mais a opção pronta \"no a definir, situado à a definir\" no item 5.3."] },
   { v:"3.21.1", data:"2026-09-24", titulo:"Edital de Abertura: prazo da prova on-line lido do formulário de abertura",
     itens:["O prazo de disponibilização da prova on-line passa a ser preenchido a partir da resposta \"Prazo em horas para realização da prova\" do formulário da unidade; sem resposta, o campo fica em branco.",
             "Essa resposta deixou de ser usada como substituta da duração da prova, que vem apenas de \"Quantas horas o candidato terá para realizar a prova\" (sem resposta, mantém 03h00min).",

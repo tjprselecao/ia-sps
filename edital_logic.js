@@ -120,6 +120,11 @@ function extensoInt(n){
   if(n<20) return UNID[n];
   if(n<100){ const d=Math.floor(n/10), u=n%10; return DEZN[d]+(u?' e '+UNID[u]:''); }
   if(n===100) return 'cem';
+  if(n<1000){
+    const CENT=['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+    const c=Math.floor(n/100), r=n%100;
+    return CENT[c]+(r?' e '+extensoInt(r):'');
+  }
   return String(n);
 }
 function extensoNota(v){ // "0,5" -> "zero vírgula cinco" | "5" -> "cinco"
@@ -285,9 +290,14 @@ const LABELS = [
  ['mecanismos',['Mecanismos de segurança da prova on-line:']],
  ['email_resp',['Email do(s) responsável(eis) pelo acesso / correção das questões discursivas na plataforma on-line:','Email do(s) responsável(eis)']],
  ['entrevista',['Haverá 2ª fase (entrevista) com os candidatos?','Haverá 2ª fase (entrevista) com os candidatos']],
- ['qtd_convocados',['Quantidade de candidatos que serão convocados para entrevista:']],
- ['qtd_convocados_outra',['Informar quantidade:']],
- ['desempate_entrevista',['Critério de desempate']],
+ // "Informar quantidade" e "Critério de desempate" aparecem duas vezes no
+ // formulário. Os da entrevista só valem se vierem ANTES da pergunta da
+ // classificação final — sem isso, num formulário sem o bloco da entrevista,
+ // eles "pegavam" os rótulos da classificação final, que então ficava sem
+ // leitura e caía no padrão (10 melhores).
+ ['qtd_convocados',['Quantidade de candidatos que serão convocados para entrevista:'],'qtd_final'],
+ ['qtd_convocados_outra',['Informar quantidade:'],'qtd_final'],
+ ['desempate_entrevista',['Critério de desempate'],'qtd_final'],
  ['qtd_final',['Quantidade de candidatos que constarão na classificação final:']],
  ['qtd_final_outra',['Informar quantidade:']],
  ['desempate_final',['Critério de desempate']],
@@ -330,12 +340,17 @@ function parseFormulario(texto){
 
   // localizar cada rótulo em ordem
   const achados=[]; let cursor=0;
-  LABELS.forEach(([chave,rotulos])=>{
+  LABELS.forEach(([chave,rotulos,antesDe])=>{
     let idx=-1, alvo='';
     for(const r of rotulos){
       alvo=normLabel(r);
       idx=CN.indexOf(alvo, cursor);
       if(idx!==-1) break;
+    }
+    if(idx!==-1 && antesDe){
+      const lim=LABELS.find(l=>l[0]===antesDe)[1]
+        .map(r=>CN.indexOf(normLabel(r), cursor)).filter(i=>i!==-1);
+      if(lim.length && idx>Math.min(...lim)) idx=-1;
     }
     if(idx===-1){ achados.push({chave, ini:-1}); return; }
     let fim = idx + alvo.length;
@@ -363,6 +378,58 @@ function parseFormulario(texto){
   }
   dados.num_sei = mSei ? mSei[0] : '';
   return dados;
+}
+
+/* Quantidade de candidatos (entrevista / classificação final). A resposta vem
+   da lista do formulário — "Apenas os 10 melhores classificados", "Todos os
+   que atingirem a nota mínima", "Outra quantidade" — e o número da opção
+   "Outra" fica no campo seguinte, "Informar quantidade" (aceita "15",
+   "15 (quinze)", "quinze", "os 15 primeiros"...). Um número digitado em
+   "Informar quantidade" é escolha deliberada da unidade, então prevalece
+   sobre a opção da lista quando as duas divergem (com aviso).
+   Retorna {n} | {todos:true} | null (não reconhecido). */
+function normQtd(s){
+  const t=String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+  return (t==='-' || t==='—') ? '' : t;
+}
+function numeroNoTexto(s){
+  s=normQtd(s);
+  const m=s.match(/\d+/);
+  if(m){ const n=parseInt(m[0],10); return n>0 ? n : null; }
+  const dez='vinte|trinta|quarenta|cinquenta|sessenta|setenta|oitenta|noventa';
+  const uni='dois|duas|tres|quatro|cinco|seis|sete|oito|nove';
+  let c=s.match(new RegExp('\\b('+dez+') e ('+uni+'|um|uma)\\b'));
+  if(c) return NUM_EXTENSO[c[1]]+NUM_EXTENSO[c[2]];
+  // "um"/"uma" ficam de fora sozinhos: no texto livre são quase sempre artigo
+  const pal=Object.keys(NUM_EXTENSO).filter(k=>k!=='um' && k!=='uma').join('|');
+  c=s.match(new RegExp('\\b('+pal+')\\b'));
+  return c ? NUM_EXTENSO[c[1]] : null;
+}
+function lerQuantidade(resp, outra, contexto, avisos){
+  const r=normQtd(resp), o=normQtd(outra);
+  const nOutra=o ? numeroNoTexto(o) : null;
+  let q=null;
+  if(/\boutra\b/.test(r)){
+    if(nOutra) q={n:nOutra};
+    else if(/\btodos\b/.test(o)) q={todos:true};
+    return q;
+  }
+  if(/\btodos\b/.test(r) && !/\b(apenas|somente|melhores|primeiros)\b/.test(r)) q={todos:true};
+  else { const n=numeroNoTexto(r); if(n) q={n}; }
+  if(nOutra && (!q || q.todos || q.n!==nOutra)){
+    if(q) avisos.push('Quantidade de candidatos ('+contexto+'): a opção marcada no formulário é "'+String(resp).replace(/\s+/g,' ').trim()+'", mas em "Informar quantidade" consta "'+String(outra).replace(/\s+/g,' ').trim()+'". Foi usado '+nOutra+' — confira com a unidade.');
+    q={n:nOutra};
+  }
+  return q;
+}
+function textoMelhores(n, artigo){ // (15,'aos') -> "aos 15 (quinze) melhores classificados"
+  if(n===1) return artigo.replace(/s$/,'')+' 1 (um) melhor classificado';
+  return artigo+' '+n+' ('+extensoInt(n)+') melhores classificados';
+}
+function resumoResposta(resp, outra){
+  const r=String(resp||'').replace(/\s+/g,' ').trim() || '(em branco)';
+  const o=normQtd(outra) ? String(outra).replace(/\s+/g,' ').trim() : '';
+  return o ? r+' / Informar quantidade: '+o : r;
 }
 
 function aplicarDados(d, avisos){
@@ -432,32 +499,36 @@ function aplicarDados(d, avisos){
     else if(/6 \(seis\)|seis meses/.test(v)) values.VIGENCIA='6 (seis) meses, prorrogável por igual período';
     else if(/3 \(tres\)|tres meses/.test(v)) values.VIGENCIA='3 (três) meses, prorrogável por igual período';
   }
-  if(d.qtd_final){
-    const q=norm(d.qtd_final);
-    if(/apenas os (\d+)/.test(q)){
-      const n=q.match(/apenas os (\d+)/)[1];
-      const op=LIMITES_121.find(x=>x.indexOf('apenas os '+n+' ')===0);
-      if(op){ values.LIMITE_CLASSIFICADOS=op; values.LIMITE_FINAL='limitada apenas aos '+op.replace('apenas os ',''); }
-    } else if(/todos/.test(q)){
+  // Quantidade da classificação final (itens 1.2.1 e 7.x). Nada é deixado no
+  // valor anterior em silêncio: lido -> aplica; não lido -> padrão + aviso.
+  if(d.qtd_final!=null){
+    const q=lerQuantidade(d.qtd_final, d.qtd_final_outra, 'classificação final', avisos);
+    if(q && q.todos){
       values.LIMITE_CLASSIFICADOS='todos os candidatos que atingirem a pontuação mínima';
       values.LIMITE_FINAL='a todos os candidatos que atingirem a pontuação mínima';
-    } else if(/outra/.test(q) && d.qtd_final_outra){
-      avisos.push('Classificação final com "outra quantidade": "'+d.qtd_final_outra+'" — ajuste os itens 1.2.1 e da classificação final manualmente.');
+    } else if(q){
+      values.LIMITE_CLASSIFICADOS='apenas '+textoMelhores(q.n, 'os');
+      values.LIMITE_FINAL='limitada apenas '+textoMelhores(q.n, 'aos');
+    } else {
+      values.LIMITE_CLASSIFICADOS=FIELDS.LIMITE_CLASSIFICADOS.def;
+      values.LIMITE_FINAL=FIELDS.LIMITE_FINAL.def;
+      avisos.push('Quantidade de candidatos da classificação final não reconhecida ("'+resumoResposta(d.qtd_final, d.qtd_final_outra)+'") — mantido o padrão (10 melhores). Ajuste os itens 1.2.1 e da classificação final.');
     }
+  } else {
+    avisos.push('Quantidade de candidatos da classificação final não localizada no formulário — mantido o padrão (10 melhores). Confira.');
   }
   if(axes.entrev==='S' && d.desempate_entrevista && /idade|nascimento/i.test(d.desempate_entrevista)){
     values.DESEMPATE_TEXTO='será utilizado critério de desempate (data de nascimento)';
   }
-  if(axes.entrev==='S' && d.qtd_convocados){
-    const q=norm(d.qtd_convocados);
-    if(/todos os que atingirem a nota minima/.test(q)) values.LIMITE_CONVOCADOS='a todos os candidatos que atingirem a nota mínima';
-    else if(/apenas os (\d+)/.test(q)){
-      const n=q.match(/apenas os (\d+)/)[1];
-      const op=LIMITES_121.find(x=>x.indexOf('apenas os '+n+' ')===0);
-      if(op) values.LIMITE_CONVOCADOS='limitada apenas aos '+op.replace('apenas os ','');
-    } else if(/outra/.test(q)){
-      const info=(d.qtd_convocados_outra||'').split('\n')[0]||'(não informado)';
-      avisos.push('Convocação para entrevista com "outra quantidade": "'+info+'" — ajuste o item 6.1 manualmente.');
+  if(axes.entrev==='S'){
+    const q=d.qtd_convocados!=null ? lerQuantidade(d.qtd_convocados, d.qtd_convocados_outra, 'entrevista', avisos) : null;
+    if(q && q.todos) values.LIMITE_CONVOCADOS='a todos os candidatos que atingirem a nota mínima';
+    else if(q) values.LIMITE_CONVOCADOS='limitada apenas '+textoMelhores(q.n, 'aos');
+    else {
+      values.LIMITE_CONVOCADOS=FIELDS.LIMITE_CONVOCADOS.def;
+      avisos.push(d.qtd_convocados!=null
+        ? 'Quantidade de candidatos convocados para entrevista não reconhecida ("'+resumoResposta(d.qtd_convocados, d.qtd_convocados_outra)+'") — mantido "todos que atingirem a nota mínima". Ajuste o item 6.1.'
+        : 'Quantidade de candidatos convocados para entrevista não localizada no formulário — mantido "todos que atingirem a nota mínima". Confira o item 6.1.');
     }
   }
   if(d.prazo_inscricao){
@@ -482,11 +553,13 @@ function aplicarDados(d, avisos){
   values.COMPOSICAO_PROVA = sugestaoComposicao(d.q_objetivas, d.q_discursivas, d.peso_discursivas) || values.COMPOSICAO_PROVA;
   if(values.COMPOSICAO_PROVA && d.q_objetivas && d.q_discursivas && d.peso_discursivas)
     avisos.push('Composição da prova sugerida assumindo nota total 10 — confira o peso das questões objetivas.');
-  if(axes.modal==='PR' && d.local_prova && d.local_prova!=='-'){
+  // "a definir"/"a confirmar" não é local: sem opção pronta, só o ensalamento
+  const localInformado = v => !!v && v.trim()!=='-' && !/^a (definir|confirmar)\b|^nao (definido|informado)/.test(norm(v.trim()));
+  if(axes.modal==='PR' && localInformado(d.local_prova)){
     // acrescenta uma opção pronta com o local informado pela unidade, sem trocar o padrão (ensalamento)
     FIELDS.DATA_PROVA_PRESENCIAL.opts = FIELDS.DATA_PROVA_PRESENCIAL.opts.concat(
       'A prova será realizada presencialmente em 00/00/0000, das 00h00min às 00h00min, no '
-      + d.local_prova + (d.endereco_prova && d.endereco_prova!=='-' ? ', situado à '+d.endereco_prova : '') + '.');
+      + d.local_prova + (localInformado(d.endereco_prova) ? ', situado à '+d.endereco_prova : '') + '.');
     avisos.push('Local informado pela unidade: "'+d.local_prova+'". O item 5.3 ficou com a opção do Edital de Ensalamento; se preferir citar data e local no edital, escolha o texto pronto correspondente e preencha data/horário.');
   }
   if(d.conteudo){
@@ -844,35 +917,95 @@ function htmlComEstilosInline(el, entrelinha, espacoP){
   return '<div style="font-family:'+ED_FONTE+';font-size:11pt;line-height:'+lh+';">'
     + clone.innerHTML + '</div>';
 }
-// Reproduz programaticamente a cópia manual (selecionar o quadro + Ctrl+C):
-// ao copiar uma seleção viva da página, o navegador embute os estilos
-// computados (alinhamento, negrito) no HTML da área de transferência — é por
-// isso que a cópia manual sempre preservou a formatação. O botão agora usa
-// exatamente esse caminho.
-function copiarSelecaoViva(el){
-  const r=document.createRange(); r.selectNodeContents(el);
-  const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+/* HTML LIMPO para a área de transferência.
+   Antes, a cópia deixava o navegador serializar a seleção viva da página, e o
+   Chrome embute nela os estilos COMPUTADOS dos ancestrais — inclusive o fundo
+   cinza da página (#eef1f2, --paper do core.css) num <div> em volta de cada
+   bloco, além da cor de texto da interface. O novo editor do SEI preserva esse
+   <div> com fundo, e o texto colado aparecia numa faixa cinza (o PDF não tinha
+   o problema porque a cópia do PDF é só texto). Agora o HTML copiado é montado
+   aqui, a partir dos parágrafos já normalizados por aplicarEstilosInline:
+   só <p> (sem <div> de embrulho), sem nenhuma propriedade de fundo, e com
+   fonte/tamanho/cor declarados em cada parágrafo, como a cópia viva fazia. */
+const ED_ESTILO_TEXTO = {fontFamily:ED_FONTE, fontSize:'11pt', color:'#000'};
+function limparParaColar(raiz){
+  // cabeçalho dos quadros ("Bloco 2 — Preâmbulo" + botão Copiar), se a seleção manual pegou
+  raiz.querySelectorAll('.ed-bloco-head, button, script, style').forEach(n=>n.remove());
+  // <div> vira só o seu conteúdo: no editor do SEI um <div> colado vira um contêiner com fundo
+  raiz.querySelectorAll('div').forEach(d=>{ d.replaceWith(...d.childNodes); });
+  // quebras/indentação do HTML da página que sobram entre os parágrafos
+  Array.from(raiz.childNodes).forEach(n=>{ if(n.nodeType===3 && !n.textContent.trim() && raiz.querySelector('p')) n.remove(); });
+  raiz.querySelectorAll('*').forEach(n=>{
+    n.removeAttribute('class'); n.removeAttribute('id'); n.removeAttribute('contenteditable');
+    if(n.style){
+      ['background','background-color','background-image','box-sizing'].forEach(p=>n.style.removeProperty(p));
+      if(!n.getAttribute('style')) n.removeAttribute('style');
+    }
+  });
+  raiz.querySelectorAll('p').forEach(p=>{
+    Object.keys(ED_ESTILO_TEXTO).forEach(k=>{ if(!p.style[k]) p.style[k]=ED_ESTILO_TEXTO[k]; });
+  });
+  return raiz;
+}
+function textoPuroDe(raiz){
+  const ps=raiz.querySelectorAll('p');
+  if(!ps.length) return raiz.textContent||'';
+  return Array.from(ps).map(p=>(p.textContent||'').replace(/ /g,' ').trim()).join('\r\n\r\n');
+}
+// Conteúdo de um ou vários blocos, pronto para colar. Entre blocos (Copiar
+// tudo) vai um parágrafo vazio, como no PDF — sem isso o Preâmbulo e a
+// Numeração, que são compactos, colariam grudados.
+function conteudoParaColar(els){
+  const raiz=document.createElement('div');
+  els.forEach((el,i)=>{
+    if(i>0){ const sep=document.createElement('p'); sep.innerHTML='&nbsp;'; sep.style.margin='0'; raiz.appendChild(sep); }
+    Array.from(el.childNodes).forEach(n=>raiz.appendChild(n.cloneNode(true)));
+  });
+  limparParaColar(raiz);
+  return {html:raiz.innerHTML, plain:textoPuroDe(raiz)};
+}
+// A escrita na área de transferência passa pelo evento "copy" (setData), que
+// grava o HTML exatamente como montado — sem a serialização do navegador.
+let copiaPendente=null;
+function escreverAreaTransferencia(dados){
+  copiaPendente=dados;
   let ok=false;
   try{ ok=document.execCommand('copy'); }catch(e){ ok=false; }
-  sel.removeAllRanges();
-  return ok;
+  const usado=!copiaPendente; // o ouvinte zera ao gravar
+  copiaPendente=null;
+  return ok && usado;
 }
-// Copia um ou vários blocos. Um bloco só é copiado direto da seleção viva; para
-// vários, os blocos são reunidos num elemento temporário fora da tela (com os
-// estilos já embutidos), de onde a seleção viva é feita do mesmo jeito.
+// Ouvinte único de "copy": atende os botões (copiaPendente) e também a cópia
+// manual (Ctrl+C) de um trecho selecionado dentro dos quadros do edital.
+function aoCopiar(e){
+  let dados=copiaPendente;
+  if(!dados){
+    const sel=window.getSelection(), area=$('edBlocos');
+    if(!area || !sel || !sel.rangeCount || sel.isCollapsed) return;
+    const r=sel.getRangeAt(0);
+    if(!area.contains(r.commonAncestorContainer)) return;
+    const raiz=document.createElement('div');
+    raiz.appendChild(r.cloneContents());
+    // trecho dentro de um único parágrafo: a cópia não leva o <p>, mas mantém
+    // o negrito/itálico/link que envolvem o trecho
+    let anc=r.commonAncestorContainer;
+    if(anc.nodeType!==1) anc=anc.parentNode;
+    while(anc && anc!==area && !/^(P|DIV)$/.test(anc.tagName)){
+      const env=anc.cloneNode(false); env.append(...raiz.childNodes); raiz.appendChild(env);
+      anc=anc.parentNode;
+    }
+    limparParaColar(raiz);
+    dados={html:raiz.innerHTML, plain:textoPuroDe(raiz)};
+  }
+  if(!e.clipboardData) return;
+  e.clipboardData.setData('text/html', dados.html);
+  e.clipboardData.setData('text/plain', dados.plain);
+  e.preventDefault();
+  copiaPendente=null;
+}
 async function copiarElementos(els, msgOk){
-  if(els.length===1 && copiarSelecaoViva(els[0])){ avisoCopiado(msgOk); return; }
-  // arrow explícita: map passa o índice no 2º argumento, que aqui é a entrelinha
-  const html = els.map(el=>htmlComEstilosInline(el)).join('');
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  tmp.style.cssText = 'position:absolute;left:-9999px;top:0;width:720px;';
-  document.body.appendChild(tmp);
-  let ok=false;
-  try{ ok=copiarSelecaoViva(tmp); }catch(e){ ok=false; }
-  const plain = tmp.innerText || tmp.textContent || '';
-  tmp.remove();
-  if(ok){ avisoCopiado(msgOk); return; }
+  const {html, plain} = conteudoParaColar(els);
+  if(escreverAreaTransferencia({html, plain})){ avisoCopiado(msgOk); return; }
   // fallback: API assíncrona com HTML de estilos inline + marcação legada
   try{
     if(navigator.clipboard && window.ClipboardItem){
@@ -1083,6 +1216,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.ed-bloco-copiar').forEach(btn=>{
     btn.addEventListener('click',()=>copiarBloco(btn.dataset.bloco));
   });
+  // cópia manual (Ctrl+C) dentro dos quadros também sai limpa, sem fundo cinza
+  document.addEventListener('copy',aoCopiar);
   // guarda qual bloco está em edição, para a barra de formatação devolver o foco
   blocosEls().forEach(el=>el.addEventListener('focus',()=>{ blocoAtivo=el; }));
   $('edIncluirTribunal').addEventListener('change',atualizarTribunal);
