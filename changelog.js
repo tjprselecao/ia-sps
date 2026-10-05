@@ -16,6 +16,12 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.22", data:"2026-10-05", titulo:"Ponto 20: classificação final informada manualmente",
+    itens:["Novo botão \"Informar classificação manualmente\" no Passo 1, para quando a unidade não lança as notas na Fábrica de Provas e envia a classificação só por PDF no SEI.",
+            "A classificação pode ser colada como texto (do PDF, Excel ou Word) ou preenchida linha a linha; o texto colado vira uma tabela editável, e as linhas não reconhecidas são listadas com o texto exato.",
+            "Só nome e nota são obrigatórios: inscrição e reserva em branco são completadas pelo Relatório de inscritos, que continua obrigatório.",
+            "A ordem é a das linhas (arrastar, Alt+↑/↓ ou \"Ordenar por nota\"); empates de nota são desempatados pelo candidato mais velho, com a data de nascimento do Relatório de inscritos, e cada ajuste aparece em aviso.",
+            "Inscrições informadas que não batem com o Relatório de inscritos, ordem que contraria a nota e empates sem data de nascimento geram aviso para conferência."] },
   { v:"3.21.2", data:"2026-10-01", titulo:"Edital de Abertura: cópia sem fundo cinza no SEI e leitura das quantidades de candidatos",
     itens:["Os botões \"Copiar\" e \"Copiar tudo\" (e o Ctrl+C dentro dos quadros) passam a copiar o texto sem o fundo cinza da página, que o novo editor do SEI exibia ao colar.",
             "No \"Copiar tudo\", um parágrafo em branco separa os blocos, como no PDF.",

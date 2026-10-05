@@ -18,7 +18,7 @@
 
 // Versão exibida no canto do cabeçalho (formato "v. x.y.z"). Atualizar aqui a
 // cada commit versionado, acompanhando o número usado na mensagem do commit.
-const VERSAO_APP='3.21.2';
+const VERSAO_APP='3.22';
 
 const SECOES=[
   {
@@ -122,7 +122,7 @@ const FERRAMENTAS=[
     cor:"--mint",
     eyebrow:"Ponto 20",
     titulo:"Elaboração do Edital de classificação final",
-    descricao:"Cruza o Relatório de Classificação Final com o Relatório de Inscritos (planilhas da Fábrica de Provas), aplicando cotas de reserva e limite de aprovados."
+    descricao:"Cruza o Relatório de Classificação Final com o Relatório de Inscritos (planilhas da Fábrica de Provas), aplicando cotas de reserva e limite de aprovados. Aceita também a classificação informada manualmente, quando a unidade envia as notas só por PDF no SEI."
   },
   {
     arquivo:"ponto_26.html",

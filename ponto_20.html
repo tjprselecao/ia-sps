@@ -5,6 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ponto 20 — Cruzamento de Classificação × Inscritos (TJPR)</title>
 <link rel="stylesheet" href="core.css">
+<style>
+  /* ---- classificação informada manualmente (Passo 1) ---- */
+  .p20-seletor{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 14px; }
+  .p20-in{ width:100%; padding:5px; border:1px solid var(--line); background:#fff;
+    font-family:'Barlow',system-ui,sans-serif; font-size:12.5px; color:var(--ink); }
+  .p20-in.p20-centro{ text-align:center; }
+  .p20-in::placeholder{ color:var(--ink-soft); opacity:0.5; font-style:italic; }
+  /* campo obrigatório vazio/inválido: destaque em coral, mesmo padrão do Ponto 14 */
+  .p20-in.p20-vazio{ border-color:var(--coral); background:#fff6f4; box-shadow:0 0 0 2px rgba(235,85,59,0.12); }
+  .p20-acoes{ display:flex; gap:10px; flex-wrap:wrap; margin:12px 0 0; }
+  #p20ContagemManual{ font-size:12px; color:var(--ink-soft); margin:10px 0 0; }
+  #p20TextoColado{ min-height:130px; }
+  #p20TextoColado::placeholder{ color:var(--ink-soft); opacity:0.45; font-style:italic; }
+</style>
 </head>
 <body>
 
@@ -30,17 +44,55 @@
         <li>o <strong>Relatório de Inscritos</strong> (Tabela 2).</li>
       </ol>
       <p class="step-desc">Exporte ambos em <strong>.xlsx</strong>, sem alterar o conteúdo, e envie-os nos passos abaixo.</p>
+      <p class="step-desc"><strong>A unidade não lançou as notas na Fábrica de Provas</strong> e mandou a classificação só por PDF no SEI? No Passo 1, use <strong>Informar classificação manualmente</strong>: cole o texto da tabela ou preencha linha a linha (nome e nota são obrigatórios). O Relatório de Inscritos continua necessário — é dele que vêm a reserva, a inscrição que faltar e a data de nascimento para desempate (mais velho primeiro).</p>
     </div>
     <div class="step">
       <div class="step-head">
         <span class="step-num">1</span>
-        <p class="step-title">Envie a Tabela 1 (Classificação Final)</p>
+        <p class="step-title" id="p20Passo1Tit">Envie a Tabela 1 (Classificação Final)</p>
       </div>
-      <p class="step-desc">Baixe o <strong>Relatório de Classificação Final</strong> na Fábrica de Provas e envie o arquivo (.xlsx) aqui. Colunas esperadas: CLASSIFICAÇÃO, INSCRIÇÃO, NOME, E-MAIL, PROVA, ENTREVISTA, FINAL, RESERVA, NASCIMENTO.</p>
-      <div class="upload-panel">
+      <p class="step-desc" id="p20Passo1Desc">Baixe o <strong>Relatório de Classificação Final</strong> na Fábrica de Provas e envie o arquivo (.xlsx) aqui. Colunas esperadas: CLASSIFICAÇÃO, INSCRIÇÃO, NOME, E-MAIL, PROVA, ENTREVISTA, FINAL, RESERVA, NASCIMENTO.</p>
+      <p class="step-desc" id="p20Passo1DescManual" style="display:none;">Informe os candidatos <strong>na ordem de classificação enviada pela unidade</strong>, só os classificados. <strong>NOME</strong> e <strong>NOTA</strong> são obrigatórios; INSCRIÇÃO e RESERVA em branco são completadas pelo Relatório de inscritos (Passo 2). Empates de nota são desempatados pelo candidato mais velho no processamento.</p>
+      <div class="upload-panel" id="p20Upload1">
         <button class="file-btn" id="p20FileBtn1" type="button">Escolher arquivo (Tabela 1)</button>
         <input type="file" id="p20Tabela1File" accept=".xlsx,.xls,.csv">
         <span class="file-name" id="p20FileName1">Nenhum arquivo selecionado</span>
+      </div>
+      <div class="alt-action">
+        <span id="p20ManualPergunta">A unidade não lançou as notas e mandou a classificação só por PDF no SEI?</span>
+        <button type="button" class="link-btn" id="p20BtnManual">Informar classificação manualmente</button>
+      </div>
+
+      <div id="p20ManualWrap" class="collapse-panel" style="display:none;">
+        <div class="p20-seletor">
+          <button type="button" class="link-btn forte" id="p20BtnVerColar">Colar texto</button>
+          <button type="button" class="link-btn" id="p20BtnVerLinhas">Preencher linha a linha</button>
+        </div>
+
+        <div id="p20ColarWrap">
+          <p class="step-desc" style="margin-left:0;">Cole a tabela do PDF da unidade (texto puro, Excel ou Word) — uma linha por candidato, na ordem de classificação: <em>[inscrição]</em> NOME NOTA <em>[reserva]</em>. O número da ordem no início da linha e o cabeçalho são ignorados; se a linha trouxer mais de uma nota (prova, entrevista, final), vale a última. O texto lido vira a tabela abaixo, para conferir e ajustar.</p>
+          <textarea id="p20TextoColado" placeholder="Ex: modelo de preenchimento — os dados abaixo são fictícios
+
+1º  FULANA DE TAL EXEMPLO        8,50
+2º  1234567  CICLANO DE TAL      8,50   2.1.1
+3º  BELTRANA EXEMPLO             7,75   Pessoa com deficiência"></textarea>
+          <div class="download-row" style="margin-top:10px;">
+            <button type="button" class="link-btn forte" id="p20BtnLerTexto">Ler texto e montar tabela</button>
+          </div>
+          <div id="p20AvisosColagem" class="notice-banner" style="display:none;margin-left:0;"></div>
+        </div>
+
+        <div id="p20TabelaManual" style="margin-top:16px;"></div>
+        <div class="p20-acoes">
+          <button type="button" class="link-btn" id="p20BtnAddLinha">+ Adicionar linha</button>
+          <button type="button" class="link-btn" id="p20BtnOrdenarNota">Ordenar por nota (maior primeiro)</button>
+          <button type="button" class="link-btn" id="p20BtnLimparTabela">Limpar tabela</button>
+        </div>
+        <p id="p20ContagemManual"></p>
+        <small style="display:block;margin-top:6px;color:var(--ink-soft);font-size:11.5px;line-height:1.5;">
+          Arraste pela alça <strong>⠿</strong> (ou use Alt+↑ / Alt+↓) para reordenar, <strong>✕</strong> para excluir uma linha.
+          Enter leva ao mesmo campo da linha de baixo — na última linha, cria uma nova. A nota é formatada sozinha (8.5 vira 8,50).
+        </small>
       </div>
     </div>
 
@@ -72,7 +124,7 @@
         <span class="step-num">4</span>
         <p class="step-title">Quantidade máxima de classificados/aprovados <em>(opcional)</em></p>
       </div>
-      <p class="step-desc">Informe o número total de candidatos que devem constar na tabela final (ex.: "5" ou "21"). <strong>Deixando em branco, entram todos os classificados da Tabela 1</strong> — nesse caso a ferramenta avisa, para você conferir se é isso mesmo. Candidatos marcados como REPROVADO nunca entram na lista, independentemente deste número.</p>
+      <p class="step-desc">Informe o número total de candidatos que devem constar na tabela final (ex.: "5" ou "21"). <strong>Deixando em branco, entram todos os classificados da Tabela 1 (ou da classificação manual)</strong> — nesse caso a ferramenta avisa, para você conferir se é isso mesmo. Candidatos marcados como REPROVADO nunca entram na lista, independentemente deste número.</p>
       <input type="text" inputmode="numeric" class="num-input exemplo-input" id="p20MaxInput" placeholder="Ex: 10">
     </div>
 
