@@ -17,7 +17,8 @@
 
 const CHANGELOG = [
   { v:"3.22.1", data:"2026-10-06", titulo:"Convocação da Residência: Bloco 3 sai só com o número do processo",
-    itens:["Na segunda linha do Bloco 3 (Numeração), sai apenas o número do processo, sem o \"SEI!TJPR N°\", que já vem do modelo do Athos.",
+    itens:["O Bloco 3 (Numeração) passa a trazer apenas o número do processo SEI. A linha \"EDITAL N° $$(numerar automaticamente)%%\" e o rótulo \"SEI!TJPR N°\" saem, porque já vêm do modelo do Athos.",
+            "O campo \"Numeração do edital no Athos\", que só alimentava essa linha, foi retirado dos Dados do edital.",
             "O PDF segue o mesmo formato dos blocos."] },
   { v:"3.22", data:"2026-10-05", titulo:"Ponto 20: classificação final informada manualmente",
     itens:["Novo botão \"Informar classificação manualmente\" no Passo 1, para quando a unidade não lança as notas na Fábrica de Provas e envia a classificação só por PDF no SEI.",
