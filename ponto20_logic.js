@@ -37,6 +37,12 @@
 
   let outputRows = [];
 
+  // Entrevistas dispensadas: texto publicado logo abaixo da tabela do edital.
+  const semEntrevistaChk = document.getElementById('p20SemEntrevista');
+  const AVISO_SEM_ENTREVISTA = 'Por interesse e conveniência da Administração, ficam dispensadas as entrevistas, ' +
+    'sendo mantida, para fins de classificação final, a ordem de classificação obtida pelos candidatos na prova escrita.';
+  let avisoAposTabela = [];
+
   // Classificação informada manualmente (Passo 1, alternativa à Tabela 1):
   // cada linha = { id, insc, nome, nota, reserva }, na ordem de classificação.
   let modoManual = false;
@@ -189,6 +195,9 @@
     // Opcional: o Relatório de Classificação Final também traz uma coluna
     // RESERVA. Ela é usada como conferência cruzada / rede de segurança.
     const colReserva1 = findCol(t1[0], ['RESERVA']);
+    // Opcional: só usada para conferir FINAL = PROVA quando as entrevistas
+    // foram dispensadas.
+    const colProva = findCol(t1[0], ['PROVA']);
 
     if(!colClass || !colInsc1 || !colNome1 || !colFinal){
       alert('Não foi possível identificar as colunas obrigatórias da Tabela 1 (CLASSIFICAÇÃO, INSCRIÇÃO, NOME, FINAL). Colunas encontradas no arquivo: ' + Object.keys(t1[0]).join(', '));
@@ -217,6 +226,7 @@
         insc: r[colInsc1],
         nome: r[colNome1],
         final: r[colFinal],
+        prova: colProva ? r[colProva] : '',
         reserva1: colReserva1 ? r[colReserva1] : ''
       });
     });
@@ -227,7 +237,7 @@
     }
 
     filtered.sort((a,b) => a.ordem - b.ordem);
-    return { filtered, reprovadosCount, classErrors };
+    return { filtered, reprovadosCount, classErrors, temColProva: !!colProva };
   }
 
   // Classificação informada à mão: a ORDEM é a das linhas da tabela. Cada
@@ -376,6 +386,14 @@
     // null = quantidade não informada: entram todos os classificados
     const maxNum = limiteInformado().valor;
 
+    // Entrevistas dispensadas: o aviso vai abaixo da tabela e, com a planilha
+    // da Fábrica, a nota FINAL de cada aprovado é conferida contra a da PROVA
+    // (uma FINAL calculada com entrevista zerada, por exemplo, viraria aviso).
+    // Na classificação manual a nota é a digitada — não há o que conferir.
+    const semEntrevista = semEntrevistaChk.checked;
+    const conferirProva = semEntrevista && !modoManual && base.temColProva;
+    let provaDivergencias = [];
+
     let notaErrors = [];
     const totalDisponivel = filtered.length;
     const limited = (maxNum === null) ? filtered.slice() : filtered.slice(0, maxNum);
@@ -395,6 +413,14 @@
 
       const notaResult = formatNota(r.final);
       if(!notaResult.ok) notaErrors.push('Classificação ' + r.ordem + ' (' + r.nome + '): nota "' + notaResult.value + '" não numérica');
+      if(conferirProva && notaResult.ok){
+        const nFinal = parseFloat(String(r.final).trim().replace(',', '.'));
+        const nProva = parseFloat(String(r.prova === undefined || r.prova === null ? '' : r.prova).trim().replace(',', '.'));
+        if(isNaN(nFinal) || isNaN(nProva) || !mesmaNota(nFinal, nProva)){
+          const provaTxt = isNaN(nProva) ? '(em branco)' : fmtNotaNum(nProva);
+          provaDivergencias.push('Classificação ' + r.ordem + ' (' + r.nome + '): FINAL ' + (notaResult.value || '(em branco)') + ' × PROVA ' + provaTxt);
+        }
+      }
 
       const rotulo = 'Classificação ' + r.ordem + ' (' + r.nome + ')';
       const res2 = match ? mapReserva(match[colReserva2]) : { code:'', desconhecidos:[] };
@@ -436,7 +462,9 @@
 
     renderResults({ reprovadosCount: base.reprovadosCount, classErrors: base.classErrors, notaErrors, unmatched,
                     totalDisponivel, maxNum, reservaSuprimida, reservaErrors, reservaDivergencias,
-                    rotT1, manual: modoManual ? base.info : null });
+                    rotT1, manual: modoManual ? base.info : null,
+                    semEntrevista, provaDivergencias,
+                    semColProva: semEntrevista && !modoManual && !base.temColProva });
   }
 
   // Lista de avisos no selo: título + até `limite` itens.
@@ -459,7 +487,8 @@
                                    m.desempates.length > 0 || m.empatesSemData.length > 0);
     const temAviso = info.unmatched.length > 0 || info.classErrors.length > 0 || info.notaErrors.length > 0 ||
                      info.reservaErrors.length > 0 || info.reservaDivergencias.length > 0 ||
-                     (!semLimite && info.totalDisponivel < info.maxNum) || temAvisoManual;
+                     (!semLimite && info.totalDisponivel < info.maxNum) || temAvisoManual ||
+                     info.provaDivergencias.length > 0 || info.semColProva;
 
     // Informações da classificação manual que não exigem correção — saem
     // tanto no selo CONFERIDO quanto no REVISAR.
@@ -473,6 +502,9 @@
       }
     }
     const prefixo = m ? '<strong>Classificação informada manualmente.</strong> ' : '';
+    if(info.semEntrevista){
+      infoManual += '<br>Entrevistas dispensadas — o aviso foi incluído abaixo da tabela (na prévia e no “Copiar tabela”).';
+    }
 
     if(!temAviso){
       stampBadge.classList.remove('warn');
@@ -511,6 +543,12 @@
       if(m && m.inscDivergencias.length > 0){
         html += listaAviso('<strong style="color:var(--stamp-red)">' + m.inscDivergencias.length + ' inscrição(ões) informada(s) que não batem com a Tabela 2</strong> — conferir manualmente:', m.inscDivergencias);
       }
+      if(info.provaDivergencias.length > 0){
+        html += listaAviso('<strong style="color:var(--stamp-red)">' + info.provaDivergencias.length + ' candidato(s) com nota FINAL diferente da PROVA</strong> — com as entrevistas dispensadas, as duas deveriam ser iguais; a tabela usa a FINAL, conferir manualmente:', info.provaDivergencias);
+      }
+      if(info.semColProva){
+        html += '<br><strong style="color:var(--stamp-red)">A Tabela 1 não tem a coluna PROVA</strong> — não foi possível conferir se a nota FINAL é a da prova escrita; conferir manualmente.';
+      }
       if(info.unmatched.length > 0){
         html += listaAviso('<strong style="color:var(--stamp-red)">' + info.unmatched.length + ' candidato(s) sem correspondência</strong> na Tabela 2 (RESERVA deixado em branco, linhas destacadas abaixo):', info.unmatched, 12);
       }
@@ -539,6 +577,9 @@
         '</tr>';
     });
     html += '</tbody></table></div>';
+    // o aviso fica gravado com o resultado, para a cópia sair igual à prévia
+    avisoAposTabela = info.semEntrevista ? [AVISO_SEM_ENTREVISTA] : [];
+    avisoAposTabela.forEach(t => { html += '<p class="p20-aviso-previa">' + escapeHtml(t) + '</p>'; });
     resultArea.innerHTML = html;
 
     downloadRow.style.display = 'flex';
@@ -553,7 +594,14 @@
   }
 
   copyBtn.addEventListener('click', () => {
-    TJPRCore.copyTableToClipboard(activeCols, outputRows, getCellValue, copyBtn);
+    TJPRCore.copyTableToClipboard(activeCols, outputRows, getCellValue, copyBtn,
+      { paragrafosApos: avisoAposTabela });
+  });
+
+  // Marcar/desmarcar depois de processado refaz o processamento, para a
+  // prévia, a cópia e a conferência FINAL × PROVA acompanharem a caixa.
+  semEntrevistaChk.addEventListener('change', () => {
+    if(outputRows.length && !processBtn.disabled) processBtn.click();
   });
 
   downloadBtn.addEventListener('click', function(){

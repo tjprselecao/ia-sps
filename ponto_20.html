@@ -18,6 +18,12 @@
   #p20ContagemManual{ font-size:12px; color:var(--ink-soft); margin:10px 0 0; }
   #p20TextoColado{ min-height:130px; }
   #p20TextoColado::placeholder{ color:var(--ink-soft); opacity:0.45; font-style:italic; }
+
+  /* ---- entrevistas dispensadas ---- */
+  .p20-check{ display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink); cursor:pointer; }
+  .p20-check input{ width:16px; height:16px; margin:0; accent-color:var(--teal); cursor:pointer; }
+  /* aviso como sai no edital, logo abaixo da tabela gerada */
+  .p20-aviso-previa{ margin:16px 0 0; max-width:760px; text-align:justify; font-size:13px; line-height:1.55; color:var(--ink); }
 </style>
 </head>
 <body>
@@ -126,6 +132,14 @@
       </div>
       <p class="step-desc">Informe o número total de candidatos que devem constar na tabela final (ex.: "5" ou "21"). <strong>Deixando em branco, entram todos os classificados da Tabela 1 (ou da classificação manual)</strong> — nesse caso a ferramenta avisa, para você conferir se é isso mesmo. Candidatos marcados como REPROVADO nunca entram na lista, independentemente deste número.</p>
       <input type="text" inputmode="numeric" class="num-input exemplo-input" id="p20MaxInput" placeholder="Ex: 10">
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-num">5</span>
+        <p class="step-title">Entrevistas dispensadas <em>(opcional)</em></p>
+      </div>
+      <label class="p20-check step-content"><input type="checkbox" id="p20SemEntrevista"> Incluir o aviso de entrevistas dispensadas abaixo da tabela de classificação</label>
     </div>
 
     <div class="step">

@@ -100,10 +100,19 @@ window.TJPRCore = (function(){
   // Copia cols/rows para a área de transferência como tabela real (HTML) +
   // texto puro (fallback). getCell(row, col) deve devolver o valor de cada
   // célula. buttonEl recebe o feedback visual "Copiado!".
-  async function copyTableToClipboard(cols, rows, getCell, buttonEl){
+  // opcoes.paragrafosApos (opcional): textos copiados logo abaixo da tabela,
+  // justificados, depois de um parágrafo em branco — sem fonte nem cor, para
+  // herdar a formatação do documento onde forem colados.
+  async function copyTableToClipboard(cols, rows, getCell, buttonEl, opcoes){
     if(rows.length === 0) return;
-    const tsv = buildTSV(cols, rows, getCell);
-    const htmlTable = buildCleanTableHTML(cols, rows, getCell);
+    const apos = (opcoes && opcoes.paragrafosApos) || [];
+    let tsv = buildTSV(cols, rows, getCell);
+    let htmlTable = buildCleanTableHTML(cols, rows, getCell);
+    if(apos.length){
+      htmlTable += '<p style="margin:0;">&nbsp;</p>'
+        + apos.map(t => '<p style="margin:0;text-align:justify;">' + escapeHtml(t) + '</p>').join('');
+      tsv += '\n\n' + apos.join('\n');
+    }
 
     function showCopied(){
       if(!buttonEl) return;

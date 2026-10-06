@@ -16,6 +16,11 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.23", data:"2026-10-06", titulo:"Ponto 20: aviso de entrevistas dispensadas abaixo da tabela",
+    itens:["Novo Passo 5 (opcional), \"Entrevistas dispensadas\", antes do botão de processar: a caixa inclui, logo abaixo da tabela de classificação, o aviso \"Por interesse e conveniência da Administração, ficam dispensadas as entrevistas, sendo mantida, para fins de classificação final, a ordem de classificação obtida pelos candidatos na prova escrita.\"",
+            "O aviso aparece na prévia e sai no \"Copiar tabela\", depois de uma linha em branco e justificado; o CSV continua só com os dados.",
+            "Com a planilha da Fábrica de Provas, a ferramenta confere se a nota FINAL de cada candidato é igual à da PROVA e avisa quem diverge.",
+            "Marcar ou desmarcar a caixa depois de processar atualiza o resultado sozinho."] },
   { v:"3.22.1", data:"2026-10-06", titulo:"Convocação da Residência: Bloco 3 sai só com o número do processo",
     itens:["O Bloco 3 (Numeração) passa a trazer apenas o número do processo SEI. A linha \"EDITAL N° $$(numerar automaticamente)%%\" e o rótulo \"SEI!TJPR N°\" saem, porque já vêm do modelo do Athos.",
             "O campo \"Numeração do edital no Athos\", que só alimentava essa linha, foi retirado dos Dados do edital.",
