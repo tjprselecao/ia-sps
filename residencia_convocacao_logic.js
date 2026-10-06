@@ -1418,9 +1418,11 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
     b2 += '<p align="left" style="'+E0+(incluirTribunal?'margin-top:24pt;':'')+'">EDITAL DE CONVOCAÇÃO PARA ENTREVISTA N° '+esc(d.nConv||'____/____')+'</p>';
     b2 += '<p align="left" style="'+E0+'">PROCESSO SELETIVO PARA O PROGRAMA DE RESIDÊNCIA JURÍDICA</p>';
 
-    // Bloco 3 — Numeração. Alinhado à esquerda, espaçamento simples.
+    // Bloco 3 — Numeração. Alinhado à esquerda, espaçamento simples. A 2ª
+    // linha leva só o número do processo: o rótulo "SEI!TJPR N°" já vem do
+    // modelo do Athos (o PDF sai igual aos blocos, também sem o rótulo).
     let b3 = '<p align="left" style="'+E0+'">'+esc(d.nEdital||'____/____')+'</p>';
-    b3 += '<p align="left" style="'+E0+'">SEI!TJPR N° '+esc(d.sei||'____________')+'</p>';
+    b3 += '<p align="left" style="'+E0+'">'+esc(d.sei||'____________')+'</p>';
 
     // Bloco 4 — Conteúdo (tabelas + data/local/telefone/outras informações).
     // Um parágrafo vazio de espaçamento simples entre as tabelas de cota —

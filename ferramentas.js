@@ -18,7 +18,7 @@
 
 // Versão exibida no canto do cabeçalho (formato "v. x.y.z"). Atualizar aqui a
 // cada commit versionado, acompanhando o número usado na mensagem do commit.
-const VERSAO_APP='3.22';
+const VERSAO_APP='3.22.1';
 
 const SECOES=[
   {

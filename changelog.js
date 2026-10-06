@@ -16,6 +16,9 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.22.1", data:"2026-10-06", titulo:"Convocação da Residência: Bloco 3 sai só com o número do processo",
+    itens:["Na segunda linha do Bloco 3 (Numeração), sai apenas o número do processo, sem o \"SEI!TJPR N°\", que já vem do modelo do Athos.",
+            "O PDF segue o mesmo formato dos blocos."] },
   { v:"3.22", data:"2026-10-05", titulo:"Ponto 20: classificação final informada manualmente",
     itens:["Novo botão \"Informar classificação manualmente\" no Passo 1, para quando a unidade não lança as notas na Fábrica de Provas e envia a classificação só por PDF no SEI.",
             "A classificação pode ser colada como texto (do PDF, Excel ou Word) ou preenchida linha a linha; o texto colado vira uma tabela editável, e as linhas não reconhecidas são listadas com o texto exato.",
