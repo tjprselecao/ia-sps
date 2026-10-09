@@ -14,10 +14,15 @@ Duas ferramentas guardam dados **compartilhados por toda a equipe** num projeto 
   - A ferramenta passou a ser **100% local**: rascunho automático no navegador (`tjpr_resultado_final_rascunho_v1`) e arquivo .json da caixa Rascunho.
   - "Finalizar" só confere, trava e libera o PDF e o CSV.
   - A área administrativa e todo o código de nuvem saíram.
-- **Limpeza da base:** `Recursos/resultado_final_unidades_limpeza.sql`, a ser rodado **uma vez** no SQL Editor, depois de publicar a v3.24. Ele faz três coisas:
-  1. remove as policies do papel anônimo, deixando a tabela fechada;
-  2. apaga todos os registros, mantendo a tabela vazia;
-  3. confere que não sobrou nada.
+- **Peças criadas direto no Supabase**, que não estavam no repositório e foram descobertas na limpeza:
+  - a tabela `resultado_final_historico`, que guardava uma cópia de cada versão anterior de cada registro;
+  - o gatilho `resultado_final_arquivar_trg` (função `resultado_final_arquivar`), que rodava antes de cada UPDATE e DELETE, copiava a linha para o histórico e devolvia `NEW`. No DELETE esse valor é nulo, então **a exclusão era cancelada sem erro**. Era por isso que o "Excluir" da antiga área administrativa às vezes não apagava nada.
+- **Limpeza da base:** `Recursos/resultado_final_unidades_limpeza.sql`, rodado **uma vez** no SQL Editor. Numa única transação, ele:
+  1. confere que a função do gatilho não está ligada a outra tabela;
+  2. remove o gatilho e a função;
+  3. remove todas as policies das duas tabelas;
+  4. apaga todos os registros, mantendo as tabelas vazias;
+  5. confere o resultado.
 
   Não toca em `fluxo_estado` nem em `vagas_estado`.
 - **Script antigo:** `Recursos/resultado_final_unidades.sql` está **descontinuado** (aviso no topo). Rodá-lo reabriria a tabela para gravação pública.

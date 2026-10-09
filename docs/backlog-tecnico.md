@@ -23,7 +23,8 @@ Ao corrigir:
 - **Arquivos:** `resultado_final_logic.js`, `resultado_final.html`, `Recursos/resultado_final_unidades_limpeza.sql`
 - **Era:** o Resultado Final gravava no Supabase nome, e-mail, notas e nascimento de candidatos, numa tabela aberta ao papel anônimo (leitura, gravação e exclusão). A área administrativa era protegida só por um PIN de interface.
 - **Feito na v3.24:** a ferramenta deixou de usar a nuvem (100% local), e a área administrativa e o PIN saíram.
-- **Falta (operacional):** rodar **uma vez** `Recursos/resultado_final_unidades_limpeza.sql` no SQL Editor do Supabase. Ele fecha a tabela e apaga os registros, sem tocar em `fluxo_estado` nem em `vagas_estado`. Feito isso, o item vai para Resolvidos.
+- **Falta (operacional):** rodar **uma vez** a versão final de `Recursos/resultado_final_unidades_limpeza.sql` no SQL Editor do Supabase. Ele fecha e esvazia `resultado_final_unidades` **e** `resultado_final_historico`, e remove o gatilho que cancelava as exclusões, sem tocar em `fluxo_estado` nem em `vagas_estado`. Feito isso, o item vai para Resolvidos.
+- **Descoberto na limpeza:** a tabela de histórico e o gatilho tinham sido criados direto no Supabase e não constavam do repositório. Antes de mexer na base, confira sempre o que existe lá (tabelas, gatilhos, policies), e não só os `.sql` de `Recursos/`.
 - **Observação:** cada navegador que usou a ferramenta ainda guarda o próprio rascunho em localStorage. Ele é local e some com "Novo preenchimento" ou com a limpeza dos dados do site.
 
 ## Média
