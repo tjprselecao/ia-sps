@@ -310,26 +310,22 @@ function lerQuadroLista(texto){
    Mesmo mapeamento da Classificação Final. A cota VS só vale para editais de
    Ensino Médio; na Residência ela reverte para concorrência Geral. */
 
-const MAPA_RESERVA = [
-  // PRET[OA]/PARD[OA] cobre as duas concordâncias de gênero — a modalidade
-  // normalmente vem como "Pessoa Preta ou Parda" (feminino), que
-  // "PRETO|PARDO" sozinho não reconhece.
-  { flag:'ppp', re:/(PRET[OA]|PARD[OA]|NEGR|AFRO|ETNICO)/ },
-  { flag:'pcd', re:/(DEFICI|PCD|PNE|PORTADOR DE NECESSIDADE)/ },
-  { flag:'ind', re:/(INDIGEN)/ }
-];
-const RE_VS = /(VULNERAB|HIPOSSUF|BAIXA RENDA|CADUNICO|CAD UNICO|SOCIOECONOMIC|ESCOLA PUBLICA)/;
-
+// O reconhecimento do texto é o do core (TJPRCore.reconhecerReserva), único
+// para todo o portal desde a v3.24 — PRET[OA]/PARD[OA] cobre as duas
+// concordâncias de gênero ("Pessoa Preta ou Parda"). Aqui fica só a regra da
+// Residência: "Ampla"/"Geral" é ausência de cota, e a VS (código 2.1.4) não
+// marca cota nenhuma — volta em `vs` para virar aviso.
 function reservaDaModalidade(texto){
   const flags = { ppp:false, pcd:false, ind:false };
   const bruto = limpar(texto);
   if(bruto==='' || bruto==='-') return { flags, vs:false, desconhecida:null };
   const chave = semAcento(bruto).toUpperCase();
   if(/AMPLA|GERAL/.test(chave)) return { flags, vs:false, desconhecida:null };
-  if(RE_VS.test(chave)) return { flags, vs:true, desconhecida:null };
-  let achou = false;
-  MAPA_RESERVA.forEach(m=>{ if(m.re.test(chave)){ flags[m.flag]=true; achou=true; } });
-  return { flags, vs:false, desconhecida: achou ? null : bruto };
+  const r = TJPRCore.reconhecerReserva(bruto);
+  if(r.codigos.indexOf('2.1.4')!==-1) return { flags, vs:true, desconhecida:null };
+  r.codigos.forEach(cod=>{ const g = TJPRCore.grupoResidencia(cod); if(g) flags[g]=true; });
+  const reconhecida = r.codigos.length>0 || r.semReserva;
+  return { flags, vs:false, desconhecida: reconhecida ? null : bruto };
 }
 
 function reservaTexto(item){

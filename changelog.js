@@ -16,6 +16,13 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.24", data:"2026-10-09", titulo:"Resultado Final sem nuvem; reservas reconhecidas do mesmo jeito em todo o portal",
+    itens:["Resultado Final (Unidades externas): a tabela deixa de ser gravada na nuvem. Nome, e-mail, notas e data de nascimento dos candidatos ficam só no computador de quem preenche (rascunho automático do navegador e arquivo .json da caixa \"Rascunho\").",
+            "\"Finalizar preenchimento\" passa a apenas conferir, bloquear a edição e liberar o PDF e o CSV, que continuam iguais. A área administrativa (busca, exclusão e backup da base) foi retirada.",
+            "Pontos 18, 20 e 26 e ferramentas da Residência: o texto da reserva (cota) passa a ser reconhecido do mesmo jeito em todas. Tudo o que já era reconhecido continua igual; passam a valer também grafias que antes só uma ferramenta aceitava, como \"Pessoa Preta ou Parda\", \"PNE\", \"Escola pública\" e os próprios códigos 2.1.1 a 2.1.4.",
+            "Textos como \"N/A\", \"Geral\", \"Sem reserva\" e \"Não cotista\" passam a ser entendidos como ausência de cota, sem aviso de reserva não reconhecida.",
+            "Ensalamento (Ponto 14): nomes e valores com aspas não quebram mais a tabela editável.",
+            "Exemplos que traziam dados de pessoas reais foram trocados por dados fictícios."] },
   { v:"3.23", data:"2026-10-06", titulo:"Ponto 20: aviso de entrevistas dispensadas abaixo da tabela",
     itens:["Novo Passo 5 (opcional), \"Entrevistas dispensadas\", antes do botão de processar: a caixa inclui, logo abaixo da tabela de classificação, o aviso \"Por interesse e conveniência da Administração, ficam dispensadas as entrevistas, sendo mantida, para fins de classificação final, a ordem de classificação obtida pelos candidatos na prova escrita.\"",
             "O aviso aparece na prévia e sai no \"Copiar tabela\", depois de uma linha em branco e justificado; o CSV continua só com os dados.",

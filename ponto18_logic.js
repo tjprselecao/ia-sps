@@ -235,35 +235,17 @@ function comHttp(s){
 
 /* ============= B) reserva (cotas) e leitura do relatório ============= */
 
-// Mesma tabela de códigos do Ponto 20 / Edital de Classificação Final: a
-// Fábrica de Provas nem sempre grava o rótulo exatamente igual, por isso cada
-// código aceita várias grafias.
-var RESERVA_MAP=[
-  { code:'2.1.1', termos:['PRETO OU PARDO','PRETA OU PARDA','PRETO','PARDO','PRETA','PARDA','NEGRO','NEGRA','PPP','PNP'] },
-  { code:'2.1.2', termos:['PESSOA COM DEFICIENCIA','PESSOA COM DEFICIENCIA (PCD)','PCD','DEFICIENTE','DEFICIENCIA'] },
-  { code:'2.1.3', termos:['INDIGENA'] },
-  { code:'2.1.4', termos:['VULNERABILIDADE SOCIAL','HIPOSSUFICIENTE','HIPOSSUFICIENCIA'] }
-];
 var CODIGOS_RESERVA=['2.1.1','2.1.2','2.1.3','2.1.4'];
-// Valores que significam "não é cotista" — ausência de reserva, não erro.
-var SEM_RESERVA=['','-','--','N/A','NA','NAO','NAO SE APLICA','NENHUMA','NENHUM',
-                 'AMPLA CONCORRENCIA','AMPLA CONCORRENCIA (AC)','AC'];
 
 // Célula do GRUPO CADASTRO -> { code:'2.1.1', desconhecidos:[...] }.
-// Valores não reconhecidos nunca são descartados em silêncio: voltam em
-// `desconhecidos` para virar aviso na tela.
+// O reconhecimento do texto é o do core (TJPRCore.reconhecerReserva), o mesmo
+// de todo o portal desde a v3.24 — a Fábrica de Provas nem sempre grava o
+// rótulo igual, e cada cota aceita várias grafias. Valores não reconhecidos
+// nunca são descartados em silêncio: voltam em `desconhecidos` para virar
+// aviso na tela.
 function mapReserva(v){
-  var partes=String(v==null?'':v).split(/[,;\/|]+/).map(normHeader).filter(function(p){ return p!==''; });
-  var codes=[], desconhecidos=[];
-  partes.forEach(function(p){
-    if(SEM_RESERVA.indexOf(p)!==-1) return;
-    var hit=null;
-    RESERVA_MAP.forEach(function(r){ if(!hit && r.termos.indexOf(p)!==-1) hit=r; });
-    if(hit){ if(codes.indexOf(hit.code)===-1) codes.push(hit.code); }
-    else if(desconhecidos.indexOf(p)===-1){ desconhecidos.push(p); }
-  });
-  codes.sort();
-  return { code:codes.join(', '), desconhecidos:desconhecidos };
+  var r=C.reconhecerReserva(v);
+  return { code:r.codigos.join(', '), desconhecidos:r.desconhecidos };
 }
 
 // Cabeçalhos aceitos para cada campo do relatório da Fábrica de Provas.

@@ -1,3 +1,11 @@
+-- ===========================================================================
+-- DESCONTINUADO NA v3.24 — NÃO RODE ESTE ARQUIVO.
+-- O Resultado Final deixou de gravar na nuvem (os dados de candidatos ficam
+-- só no computador de quem preenche). Rodar este script reabriria a tabela
+-- para leitura e gravação públicas. Para limpar a base, use
+-- resultado_final_unidades_limpeza.sql. Mantido só como histórico.
+-- ===========================================================================
+--
 -- Tabela do Gerador da Tabela de Resultado Final (resultado_final_logic.js)
 -- Mesmo projeto Supabase já usado pelo Fluxo e pela Consulta de Vagas —
 -- rodar no SQL Editor do projeto antes do primeiro uso da ferramenta.

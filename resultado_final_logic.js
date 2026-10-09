@@ -25,10 +25,14 @@
      - CSV (.csv, ';', UTF-8 com BOM): mesmas colunas — aceito diretamente
        pela ferramenta do Ponto 20 hoje.
 
-   Nuvem: cada preenchimento é gravado no Supabase (tabela
-   resultado_final_unidades) com id igual aos dígitos do processo SEI —
-   salvar de novo com o mesmo SEI substitui o registro (é o mecanismo de
-   correção). SQL de criação e notas de backup: Recursos/resultado_final_unidades.sql.
+   Sem nuvem (desde a v3.24): os dados dos candidatos — nome, e-mail, notas,
+   data de nascimento — NÃO saem deste computador. Ficam no rascunho
+   automático do navegador (localStorage) e no arquivo .json que a pessoa
+   baixar, se quiser. Até a v3.23 cada preenchimento era gravado no Supabase
+   (tabela resultado_final_unidades), com uma área administrativa para buscar,
+   excluir e fazer backup; isso saiu para não manter dados pessoais de
+   candidatos numa base compartilhada. Limpeza da base:
+   Recursos/resultado_final_unidades_limpeza.sql.
 
    Estrutura do arquivo:
      A) utilidades de texto/número/data
@@ -37,7 +41,7 @@
      D) tabela de candidatos: desenho, edição tab-safe, arrastar e soltar
      E) reordenações e avisos
      F) documentos: CSV e PDF
-     G) nuvem: salvar, buscar, carregar, backup
+     G) pacote do preenchimento (rascunho local e arquivo .json)
      H) rascunho local (autosave + arquivo) e ligação com a página
 */
 (function(){
@@ -50,7 +54,7 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
 function escAttr(s){ return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function semAcento(s){ return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
 // chave estável de nome: sem acento, maiúscula, só letras e espaços — usada
-// na ordenação alfabética e na composição do id do registro na nuvem
+// na ordenação alfabética
 function chaveNome(s){ return semAcento(s).toUpperCase().replace(/[^A-Z ]/g,' ').replace(/\s+/g,' ').trim(); }
 function limpar(v){ return String(v==null?'':v).trim().replace(/\s+/g,' '); }
 function soDigitos(v){ return String(v==null?'':v).replace(/\D/g,''); }
@@ -131,8 +135,10 @@ function nomeUnidadePorExtenso(bruto){
 /* ========================= C) estado ========================= */
 
 // Rótulos de reserva por extenso — escolhidos entre os termos que o Ponto 20
-// reconhece (RESERVA_MAP de ponto20_logic.js, comparação sem acento), para o
-// CSV/PDF gerado aqui ser lido lá sem aviso de rótulo desconhecido.
+// reconhece (TJPRCore.reconhecerReserva, o reconhecimento único do portal),
+// para o CSV/PDF gerado aqui ser lido lá sem aviso de rótulo desconhecido.
+// Esta página não carrega o core.js (pode ser hospedada sozinha), por isso a
+// lista fica aqui.
 const RESERVAS = ['', 'Preto ou pardo', 'Pessoa com deficiência', 'Indígena', 'Vulnerabilidade social'];
 
 const COLUNAS_SAIDA = ['CLASSIFICAÇÃO','INSCRIÇÃO','NOME','E-MAIL','PROVA','ENTREVISTA','FINAL','RESERVA','NASCIMENTO'];
@@ -947,19 +953,18 @@ function aplicarTravamento(){
   renderTabela();
 }
 
-async function finalizarPreenchimento(){
+function finalizarPreenchimento(){
   const problemas = validarParaDocumento();
-  const st = $('rfNuvemStatus');
+  const st = $('rfStatusFinalizar');
   if(problemas.length){
     if(st) st.innerHTML = '<span style="color:var(--coral);">'+problemas.map(esc).join(' ')+'</span>';
     return false;
   }
+  if(st) st.textContent = '';
 
-  const gravou = await salvarNuvem();
-
-  // Trava e libera os documentos MESMO se a gravação falhar: sem isso, uma
-  // indisponibilidade da nuvem impediria a unidade de produzir o documento
-  // oficial dela. O resultado da gravação fica dito no status do Passo 3.
+  // Finalizar não envia nada para fora do computador: só confere, trava a
+  // edição e libera os documentos, que passam a corresponder exatamente ao
+  // que está na tela.
   travado = true;
   aplicarTravamento();
   const doc = $('rfDocumento');
@@ -971,7 +976,7 @@ async function finalizarPreenchimento(){
   agendarRascunhoLocal();   // guarda também o estado de finalizado
   const area = $('rfDocsArea');
   if(area && area.scrollIntoView) area.scrollIntoView({behavior:'smooth', block:'nearest'});
-  return gravou;
+  return true;
 }
 
 // Volta ao modo de edição: os documentos e a prévia somem, para não ficar
@@ -980,34 +985,15 @@ function voltarAEditar(){
   travado = false;
   aplicarTravamento();
   const msg = $('rfMsgDocs'); if(msg) msg.textContent = '';
-  const st = $('rfNuvemStatus'); if(st) st.textContent = '';
+  const st = $('rfStatusFinalizar'); if(st) st.textContent = '';
   agendarRascunhoLocal();
   avisar('Edição liberada — finalize de novo ao terminar.');
 }
 
-/* ============ G) nuvem: salvar, buscar, carregar, backup ============
-   Mesmo projeto Supabase das demais ferramentas (ver fluxo_logic.js);
-   tabela própria: resultado_final_unidades. Diferente do Fluxo (linha
-   única), aqui cada preenchimento é UMA linha, com id derivado de
-   SEI + unidade — SQL em Recursos/resultado_final_unidades.sql. */
-const SUPABASE_URL = 'https://xmuduqgwwplrtnfbfgtf.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_O3f7DXw4K3DYf34k3QaF6w_ZJgpwExw';
-const TABELA_NUVEM = 'resultado_final_unidades';
-
-function cabecalhosNuvem(extra){
-  return Object.assign({ 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }, extra || {});
-}
-
-// id único e ESTÁVEL do registro: SÓ os dígitos do processo SEI.
-// O nome da unidade NÃO entra na chave de propósito — é digitado à mão e
-// qualquer variação ("Secretaria" x "Secretária", espaço a mais, abreviação)
-// criaria um registro paralelo em vez de atualizar o existente. O SEI é
-// numérico, conferível e único por processo seletivo: reabrir e salvar com o
-// mesmo SEI cai sempre no mesmo id, e o upsert substitui.
-function idRegistro(sei){
-  const dig = soDigitos(sei);
-  return dig ? dig : null;
-}
+/* ======= G) pacote do preenchimento (rascunho local e arquivo .json) =======
+   O mesmo pacote serve ao rascunho automático do navegador e ao arquivo
+   .json da caixa Rascunho. Nada disso sai do computador: até a v3.23 ele
+   também era gravado no Supabase, o que deixou de existir (ver cabeçalho). */
 
 function pacoteAtual(){
   return {
@@ -1053,197 +1039,6 @@ function aplicarPacote(p){
   const doc = $('rfDocumento');
   if(doc && travado){ doc.innerHTML = montarDocumentoHtml(); doc.style.display = 'block'; }
   return true;
-}
-
-async function salvarNuvem(){
-  const st = $('rfNuvemStatus'), quando = $('rfNuvemSalvoEm');
-  const id = idRegistro(estado.sei);
-  if(!id){
-    if(st) st.innerHTML = '<span style="color:var(--coral);">Preencha o Número SEI (Passo 1) antes de salvar — é ele que identifica o registro.</span>';
-    return false;
-  }
-  if(st) st.textContent = 'Gravando na nuvem…';
-  try{
-    const r = await fetch(SUPABASE_URL+'/rest/v1/'+TABELA_NUVEM, {
-      method:'POST',
-      headers: cabecalhosNuvem({ 'Content-Type':'application/json', 'Prefer':'resolution=merge-duplicates,return=minimal' }),
-      body: JSON.stringify([{ id, data: pacoteAtual(), updated_at: new Date().toISOString() }])
-    });
-    if(!r.ok){
-      const detalhe = await r.text().catch(()=> '');
-      throw new Error('HTTP '+r.status+(detalhe?' — '+detalhe.slice(0,160):''));
-    }
-    const hora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    if(st) st.textContent = '';
-    if(quando) quando.textContent = 'Salvo na nuvem às '+hora+' (registro SEI '+limpar(estado.sei)+').';
-    avisar('Preenchimento salvo na nuvem.');
-    return true;
-  }catch(e){
-    console.error('Falha ao salvar na nuvem:', e);
-    if(st) st.innerHTML = '<span style="color:var(--coral);">Não foi possível salvar na nuvem ('+esc(e.message)+'). O rascunho local continua guardado neste navegador.</span>';
-    return false;
-  }
-}
-
-async function buscarNuvem(){
-  // status próprio da área administrativa: o do Passo 3 é do "Salvar", e
-  // misturar os dois faria a mensagem de uma ação aparecer sob a outra
-  const lista = $('rfNuvemLista'), st = $('rfNuvemStatusAdmin');
-  const termoBruto = limpar(($('rfNuvemBusca')&&$('rfNuvemBusca').value)||'');
-  let url = SUPABASE_URL+'/rest/v1/'+TABELA_NUVEM
-    + '?select=id,updated_at,unidade:data->>unidade,sei:data->>sei&order=updated_at.desc&limit=50';
-  if(termoBruto){
-    // O id é só o SEI em dígitos, então buscar por unidade tem de olhar o
-    // conteúdo do registro (data->>unidade), não a chave. Um `or` cobre os
-    // dois casos de uma vez: digitou número, casa pelo id; digitou nome,
-    // casa pela unidade gravada. Vírgula e parênteses quebrariam a sintaxe
-    // do PostgREST, por isso saem do termo antes de montar a URL.
-    const seguro = termoBruto.replace(/[(),*]/g,' ').trim();
-    const digitos = soDigitos(seguro);
-    const filtros = [];
-    if(digitos) filtros.push('id.ilike.*'+digitos+'*');
-    if(/[a-zA-Z]/.test(seguro)) filtros.push('data->>unidade.ilike.*'+seguro+'*');
-    if(filtros.length) url += '&or=('+encodeURIComponent(filtros.join(','))+')';
-  }
-  if(st) st.textContent = 'Buscando…';
-  try{
-    const r = await fetch(url, { headers: cabecalhosNuvem({ 'Accept':'application/json' }) });
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const regs = await r.json();
-    if(st) st.textContent = '';
-    if(!lista) return;
-    if(!regs.length){
-      lista.innerHTML = '<p class="empty-hint">Nenhum registro salvo'+(termoBruto?' com esse termo':'')+'.</p>';
-      return;
-    }
-    lista.innerHTML = regs.map(reg=>{
-      const quando = reg.updated_at ? new Date(reg.updated_at).toLocaleString('pt-BR') : '';
-      return '<div class="rf-nuvem-item">'
-        + '<div class="rf-nuvem-info">'
-        +   '<div class="rf-nuvem-unidade">'+esc(reg.unidade||'(sem unidade)')+'</div>'
-        +   '<div class="rf-nuvem-meta">SEI '+esc(reg.sei||'?')+(quando?' · atualizado em '+esc(quando):'')+'</div>'
-        + '</div>'
-        + '<button type="button" class="link-btn" data-carregar="'+escAttr(reg.id)+'">Carregar</button>'
-        + '<button type="button" class="link-btn rf-btn-excluir" data-excluir="'+escAttr(reg.id)+'"'
-        +   ' data-unidade="'+escAttr(reg.unidade||'')+'" data-sei="'+escAttr(reg.sei||'')+'">Excluir</button>'
-        + '</div>';
-    }).join('');
-    Array.prototype.forEach.call(lista.querySelectorAll('[data-carregar]'), function(b){
-      b.addEventListener('click', function(){ carregarRegistro(b.dataset.carregar); });
-    });
-    Array.prototype.forEach.call(lista.querySelectorAll('[data-excluir]'), function(b){
-      b.addEventListener('click', function(){
-        excluirRegistro(b.dataset.excluir, b.dataset.unidade, b.dataset.sei);
-      });
-    });
-  }catch(e){
-    console.error('Falha ao buscar na nuvem:', e);
-    if(st) st.innerHTML = '<span style="color:var(--coral);">Não foi possível consultar a nuvem ('+esc(e.message)+').</span>';
-  }
-}
-
-async function carregarRegistro(id){
-  const st = $('rfNuvemStatusAdmin');
-  const temConteudo = estado.linhas.some(l=>limpar(l.nome)) || limpar(estado.unidade) || limpar(estado.sei);
-  if(temConteudo && !confirm('Carregar este registro substitui o preenchimento atual da tela (o rascunho local também será sobrescrito). Continuar?')) return;
-  if(st) st.textContent = 'Carregando registro…';
-  try{
-    const r = await fetch(SUPABASE_URL+'/rest/v1/'+TABELA_NUVEM+'?select=data&id=eq.'+encodeURIComponent(id)+'&limit=1',
-      { headers: cabecalhosNuvem({ 'Accept':'application/json' }) });
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const regs = await r.json();
-    if(!regs.length || !aplicarPacote(regs[0].data)) throw new Error('registro vazio ou em formato desconhecido');
-    if(st) st.textContent = '';
-    avisar('Registro carregado — edite e finalize de novo para substituir.');
-  }catch(e){
-    console.error('Falha ao carregar registro:', e);
-    if(st) st.innerHTML = '<span style="color:var(--coral);">Não foi possível carregar ('+esc(e.message)+').</span>';
-  }
-}
-
-/* Apaga um registro da base. É DEFINITIVO: não há lixeira, e o caminho de
-   volta é o backup .json (botão logo abaixo na própria área administrativa).
-   Por isso a confirmação mostra unidade e SEI — para ninguém apagar o
-   registro errado por ter clicado na linha de cima. */
-async function excluirRegistro(id, unidade, sei){
-  const st = $('rfNuvemStatusAdmin');
-  const quem = (unidade ? unidade : '(sem unidade)') + (sei ? ' — SEI '+sei : '');
-  if(!confirm('Excluir definitivamente este registro?\n\n'+quem
-    + '\n\nNão há como desfazer. Se ainda não baixou um backup recente, cancele e baixe antes.')) return false;
-  if(st) st.textContent = 'Excluindo…';
-  try{
-    // return=representation devolve as linhas apagadas. É o que permite saber
-    // se a exclusão REALMENTE aconteceu: com RLS ativo e sem policy de DELETE
-    // a API responde 200 sem apagar nada, e um simples "deu certo" mentiria.
-    const r = await fetch(SUPABASE_URL+'/rest/v1/'+TABELA_NUVEM+'?id=eq.'+encodeURIComponent(id)+'&select=id', {
-      method:'DELETE',
-      headers: cabecalhosNuvem({ 'Accept':'application/json', 'Prefer':'return=representation' })
-    });
-    if(!r.ok){
-      const detalhe = await r.text().catch(()=> '');
-      throw new Error('HTTP '+r.status+(detalhe?' — '+detalhe.slice(0,160):''));
-    }
-    const apagados = await r.json().catch(()=> []);
-    if(!Array.isArray(apagados) || !apagados.length){
-      throw new Error('a base não apagou o registro — provavelmente falta a policy de DELETE na tabela');
-    }
-    if(st) st.innerHTML = '<span style="color:var(--teal);">Registro excluído.</span>';
-    avisar('Registro excluído da base.');
-    buscarNuvem();   // relista, para a linha apagada sumir
-    return true;
-  }catch(e){
-    console.error('Falha ao excluir registro:', e);
-    if(st) st.innerHTML = '<span style="color:var(--coral);">Não foi possível excluir ('+esc(e.message)+'). '
-      + 'Se a mensagem citar permissão, falta a policy de DELETE na tabela — ver Recursos/resultado_final_unidades.sql.</span>';
-    return false;
-  }
-}
-
-// Backup completo: baixa TODOS os registros num .json (para guarda periódica)
-// e restaura esse mesmo arquivo por upsert — o caminho de volta se a base for
-// perdida ou uma edição errada precisar ser desfeita em lote.
-async function baixarBackupCompleto(){
-  const aviso = $('rfAvisoBackup');
-  if(aviso) aviso.innerHTML = '<p class="rf-nuvem-status">Baixando todos os registros…</p>';
-  try{
-    const r = await fetch(SUPABASE_URL+'/rest/v1/'+TABELA_NUVEM+'?select=id,data,updated_at&order=id.asc&limit=10000',
-      { headers: cabecalhosNuvem({ 'Accept':'application/json' }) });
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const regs = await r.json();
-    const pacote = { formato:'resultado_final_backup', versao:1, geradoEm:new Date().toISOString(), registros:regs };
-    const data = new Date().toISOString().slice(0,10);
-    baixarArquivo('backup_resultado_final_'+data+'.json', JSON.stringify(pacote, null, 1), 'application/json');
-    if(aviso) aviso.innerHTML = '<div class="notice-banner ok" style="margin:12px 0 0 36px;"><strong>Backup gerado:</strong> '+regs.length+' registro(s).</div>';
-  }catch(e){
-    console.error('Falha no backup:', e);
-    if(aviso) aviso.innerHTML = '<div class="notice-banner warn" style="margin:12px 0 0 36px;"><strong>Não foi possível gerar o backup:</strong> '+esc(e.message)+'</div>';
-  }
-}
-
-async function restaurarBackup(file){
-  const aviso = $('rfAvisoBackup');
-  try{
-    const texto = await file.text();
-    const pacote = JSON.parse(texto);
-    if(!pacote || pacote.formato!=='resultado_final_backup' || !Array.isArray(pacote.registros))
-      throw new Error('o arquivo não é um backup desta ferramenta');
-    if(!pacote.registros.length) throw new Error('o backup está vazio');
-    if(!confirm('Restaurar '+pacote.registros.length+' registro(s) do backup? Registros com o mesmo id serão SUBSTITUÍDOS pelos do arquivo.')) return;
-    const r = await fetch(SUPABASE_URL+'/rest/v1/'+TABELA_NUVEM, {
-      method:'POST',
-      headers: cabecalhosNuvem({ 'Content-Type':'application/json', 'Prefer':'resolution=merge-duplicates,return=minimal' }),
-      body: JSON.stringify(pacote.registros.map(reg=>({ id:reg.id, data:reg.data, updated_at:reg.updated_at||new Date().toISOString() })))
-    });
-    if(!r.ok){
-      const detalhe = await r.text().catch(()=> '');
-      throw new Error('HTTP '+r.status+(detalhe?' — '+detalhe.slice(0,160):''));
-    }
-    if(aviso) aviso.innerHTML = '<div class="notice-banner ok" style="margin:12px 0 0 36px;"><strong>Backup restaurado:</strong> '+pacote.registros.length+' registro(s) gravados.</div>';
-    buscarNuvem();
-  }catch(e){
-    console.error('Falha ao restaurar backup:', e);
-    if(aviso) aviso.innerHTML = '<div class="notice-banner warn" style="margin:12px 0 0 36px;"><strong>Não foi possível restaurar:</strong> '+esc(e.message)+'</div>';
-  }
 }
 
 /* ===== H) rascunho local (autosave + arquivo) e ligação com a página ===== */
@@ -1380,9 +1175,8 @@ function teclaNasSugestoes(ev){
   else if(ev.key==='Enter' && sugestaoAtiva>=0){ ev.preventDefault(); escolherSugestao(sugestaoAtiva); }
 }
 
-// Zera o estado e a tela. `apagarRascunho` distingue os dois usos: começar do
-// zero apaga também a cópia local; abrir um registro da nuvem só limpa a tela
-// antes de aplicar o que veio de lá.
+// Zera o estado e a tela. `apagarRascunho` diz se a cópia local (rascunho
+// automático do navegador) também deve ser apagada — é o caso de começar do zero.
 function limparTudo(apagarRascunho){
   estado.sigla = ''; estado.unidade = ''; estado.sei = '';
   estado.linhas = [];
@@ -1392,8 +1186,7 @@ function limparTudo(apagarRascunho){
   if(inSei){ inSei.value = ''; marcarObrigatorio(inSei, 'rfSeiObrig'); }
   fecharSugestoes();
   const msg = $('rfMsgDocs'); if(msg) msg.textContent = '';
-  const salvoEm = $('rfNuvemSalvoEm'); if(salvoEm) salvoEm.textContent = '';
-  const st = $('rfNuvemStatus'); if(st) st.textContent = '';
+  const st = $('rfStatusFinalizar'); if(st) st.textContent = '';
   const doc = $('rfDocumento'); if(doc){ doc.innerHTML = ''; doc.style.display = 'none'; }
   // outro preenchimento recomeça em edição, com os documentos ocultos até
   // que ESTE novo trabalho seja finalizado
@@ -1403,8 +1196,8 @@ function limparTudo(apagarRascunho){
 
 // Limpa a tela para começar outro processo seletivo — o caso de uma mesma
 // unidade tocar dois certames (graduação e pós, por exemplo). Confirma antes:
-// o rascunho local é apagado junto, e o que não tiver sido salvo na nuvem ou
-// baixado se perde.
+// o rascunho local é apagado junto, e o que não tiver sido baixado (PDF, CSV
+// ou rascunho .json) se perde.
 function novoPreenchimento(){
   const temConteudo = estado.linhas.some(l=>limpar(l.nome)) || limpar(estado.unidade) || limpar(estado.sei);
   if(temConteudo && !confirm('Começar um novo preenchimento? O que está na tela será apagado — salve ou baixe antes, se ainda precisar.')) return;
@@ -1473,27 +1266,6 @@ function baixarRascunho(){
   baixarArquivo(nomeBaseArquivo()+'_rascunho.json', JSON.stringify(pacoteAtual(), null, 1), 'application/json');
 }
 
-/* ---------------- área administrativa ----------------
-   PIN de 6 dígitos que apenas EVITA CLIQUE ACIDENTAL de quem só vai gerar o
-   documento da própria unidade. Não é segurança de verdade: o valor está no
-   código, que roda no navegador. Se um dia precisar ser mesmo restrito, a
-   trava tem de ficar do lado do banco (policies do Supabase por usuário
-   autenticado), não aqui. */
-const PIN_ADMIN = '000000';
-
-function tentarPin(){
-  const campo = $('rfPin'), msg = $('rfPinMsg');
-  if(soDigitos(campo.value) === PIN_ADMIN){
-    $('rfAdminTrava').style.display = 'none';
-    $('rfAdminConteudo').style.display = '';
-    if(msg) msg.textContent = '';
-    campo.value = '';
-  } else {
-    if(msg) msg.innerHTML = '<span style="color:var(--coral);">PIN incorreto.</span>';
-    campo.value = '';
-    campo.focus();
-  }
-}
 function abrirRascunho(file){
   file.text().then(function(texto){
     let p = null;
@@ -1548,33 +1320,10 @@ document.addEventListener('DOMContentLoaded', function(){
     renderTabela();
   });
 
-  // Passo 3 — finalizar (grava, trava a tela e libera os documentos) e o
+  // Passo 3 — finalizar (confere, trava a tela e libera os documentos) e o
   // caminho de volta, que destrava e esconde os documentos de novo
   $('rfBtnFinalizar').addEventListener('click', finalizarPreenchimento);
   $('rfBtnEditar').addEventListener('click', voltarAEditar);
-
-  // Área administrativa (fora dos passos) — recuperar registros e backup,
-  // atrás do PIN. Salvar NÃO está aqui: é do usuário, no Passo 3.
-  $('rfAdminToggle').addEventListener('click', function(){
-    const corpo = $('rfAdminCorpo'), botao = $('rfAdminToggle');
-    const abrir = corpo.style.display === 'none';
-    corpo.style.display = abrir ? '' : 'none';
-    botao.textContent = abrir ? 'Fechar' : 'Abrir';
-    botao.setAttribute('aria-expanded', abrir ? 'true' : 'false');
-  });
-  $('rfBtnPin').addEventListener('click', tentarPin);
-  $('rfPin').addEventListener('keydown', function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); tentarPin(); } });
-
-  $('rfBtnNuvemBuscar').addEventListener('click', buscarNuvem);
-  $('rfNuvemBusca').addEventListener('keydown', function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); buscarNuvem(); } });
-  $('rfBtnBackupBaixar').addEventListener('click', baixarBackupCompleto);
-  const backupArquivo = $('rfBackupArquivo');
-  $('rfBtnBackupRestaurar').addEventListener('click', function(){ backupArquivo.click(); });
-  backupArquivo.addEventListener('change', function(){
-    const f = backupArquivo.files && backupArquivo.files[0];
-    backupArquivo.value = '';
-    if(f) restaurarBackup(f);
-  });
 
   // Passo 4 — documentos (PDF e CSV)
   $('rfBtnPdf').addEventListener('click', gerarPdf);
@@ -1623,15 +1372,14 @@ window.ResultadoFinal = {
   estado, novaLinha, paraNumero, fmtNota, parseDataNascimento, calcularMedia,
   notaFinalDivergente, ordenarPorNota, ordenarAlfabetico, chaveNome,
   gerarCsvTexto, montarDocumentoHtml, linhaParaColunas, validarParaDocumento,
-  idRegistro, pacoteAtual, aplicarPacote, nomeUnidadePorExtenso,
+  pacoteAtual, aplicarPacote, nomeUnidadePorExtenso,
   COLUNAS_SAIDA, RESERVAS, CHAVE_LOCAL, renderTabela,
   construirPdf, pdfLarguraTexto, pdfQuebrarTexto, pdfEscaparTexto,
   pdfBase64ParaBinario, pdfDimensoesJpeg,
   obterIndiceUnidades, atualizarSugestoes, escolherSugestao, fecharSugestoes,
-  novoPreenchimento, limparTudo, tentarPin, PIN_ADMIN,
+  novoPreenchimento, limparTudo,
   lerRascunhoGuardado, descreverRascunho, mostrarTelaInicial, abrirAreaDeTrabalho,
-  finalizarPreenchimento, voltarAEditar, aplicarTravamento, salvarNuvem,
-  excluirRegistro,
+  finalizarPreenchimento, voltarAEditar, aplicarTravamento,
   estaTravado: function(){ return travado; }
 };
 })();
