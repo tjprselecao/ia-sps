@@ -155,6 +155,8 @@ Regras de cor e fonte: [`identidade-visual.md`](identidade-visual.md).
 
 `.bloco-dia` (`.sem-dia` para o bloco "A atribuir"; `.drop-into` ao receber um arrasto), `.bloco-dia-cab`, `.bloco-dia-tit`, `.bloco-dia-qtd`, `.bloco-dia-acoes`, `.bloco-dia-horarios`, `.bloco-dia-corpo`, `.zona-vazia`.
 
+- Exclusiva do Ponto 18 (no `<style>` de `ponto_18.html`): `.p18-local-tabela`, aplicada junto com `.bloco-dia-horarios`. É a faixa de local e endereço da opção "Um local por tabela": grade de duas colunas, que vira uma abaixo de 600px.
+
 ## Documento gerado em blocos (Athos)
 
 ```html

@@ -18,7 +18,7 @@
 
 // Versão exibida no canto do cabeçalho (formato "v. x.y.z"). Atualizar aqui a
 // cada commit versionado, acompanhando o número usado na mensagem do commit.
-const VERSAO_APP='3.24';
+const VERSAO_APP='3.25';
 
 const SECOES=[
   {
@@ -112,7 +112,7 @@ const FERRAMENTAS=[
     cor:"--teal",
     eyebrow:"Ponto 18",
     titulo:"Convocação para Entrevista",
-    descricao:"Lê o Relatório de convocação para entrevistas da Fábrica de Provas, monta a tabela dos convocados (com reserva, datas, horários e links), gera a convocação pronta para salvar em PDF, os blocos para publicar no Athos e a lista de e-mails para envio pelo SEI."
+    descricao:"Lê o Relatório de convocação para entrevistas da Fábrica de Provas, monta a tabela dos convocados (com reserva, datas, horários, links e, se preciso, um local por tabela), gera a convocação pronta para salvar em PDF, os blocos para publicar no Athos e a lista de e-mails para envio pelo SEI."
   },
   {
     arquivo:"ponto_20.html",

@@ -98,12 +98,18 @@ Uma ficha por página. As funções citadas estão no `_logic.js` da ferramenta,
   - as colunas DATA e HORÁRIO são **derivadas** da alocação.
 - Avisa quando há empate na menor nota convocada.
 - Avisa quando falta o link da sala na modalidade on-line.
+- **Endereço em várias linhas** (v3.25): o campo do passo 3 é um `textarea`. `enderecoHtml` transforma cada linha numa quebra (`<br>`) dentro do mesmo parágrafo ENDEREÇO:, com o ponto final só no fim da última. Uma linha que seja só URL vira link.
+- **Um local por tabela** (v3.25, só no presencial): é a caixa `p18LocalPorTabela`, gravada em `estado.doc.localPorTabela`.
+  - Cada dia passa a guardar `local` e `endereco`, digitados no próprio bloco do passo 2. Local e Endereço únicos do passo 3 ficam ocultos e guardados.
+  - O documento sai com DATA, HORÁRIO, LOCAL e ENDEREÇO acima de **cada** tabela, sem coluna DATA (`colunasDoDia`). OBSERVAÇÕES saem uma vez, no fim.
+  - Os blocos viram "1ª tabela", "2ª tabela"… (`rotuloDia`). Data repetida não gera alerta; o aviso só aparece quando data, local e endereço coincidem.
+  - A modalidade on-line desativa a opção sem apagar a marcação. Veio de um pedido real: os 5 primeiros no gabinete e os demais na secretaria, no mesmo dia e horário.
 
 **Saídas**
 - Documento com logotipo (PDF por impressão).
 - 7 blocos do Athos (os blocos 2 a 4 em texto puro, `BLOCOS_TEXTO_PURO`).
 - Lista de e-mails separada por `; ` e assunto do e-mail.
-- Rascunho .json (`ponto18`, **versao 2**, com migração da 1). É a referência de rascunho.
+- Rascunho .json (`ponto18`, **versao 2**, com migração da 1). É a referência de rascunho. Desde a v3.25, os dias levam `local`/`endereco` e o `doc` leva `localPorTabela`; um rascunho antigo abre com a opção desligada.
 
 **Referências para reaproveitar:** `ativarBotaoCalendario`, `ativarBotaoRelogio`, `embrulharComBotao`, `interpretarHora`/`fmtHora`, `copiarConteudoEm`.
 

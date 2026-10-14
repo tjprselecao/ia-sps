@@ -16,6 +16,22 @@
     opacity:0.42;
     font-style:italic;
   }
+  /* Local e endereço próprios de cada tabela (opção "Um local por tabela", só
+     no presencial). Reaproveita a faixa .bloco-dia-horarios do core.css e só
+     troca o arranjo: grade de duas colunas, que vira uma em tela estreita. */
+  .p18-local-tabela{
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);
+    align-items:start;
+  }
+  .p18-local-tabela input[type=text]{ width:100%; }
+  .p18-local-tabela textarea{
+    min-height:58px; padding:8px;
+    background:var(--white);
+    font-family:'Barlow',system-ui,sans-serif; font-size:13px;
+  }
+  @media (max-width:600px){
+    .p18-local-tabela{ grid-template-columns:1fr; }
+  }
 </style>
 </head><body><div class="sheet">
 <div id="institutional-placeholder"></div>
@@ -30,7 +46,7 @@
     <p class="step-desc">A ferramenta cobre a fase de divulgação da <strong>Convocação para Entrevista</strong>, do relatório da Fábrica de Provas até o PDF assinado e a lista de e-mails para o SEI.</p>
     <ul class="step-list">
       <li><strong>Passo 1</strong> — enviar o Relatório de convocação para entrevistas (.xlsx da Fábrica de Provas). Reprovados são descartados automaticamente.</li>
-      <li><strong>Passo 2</strong> — alocar os convocados: criar as datas de entrevista, puxar candidatos para cada uma e definir os horários de cada dia.</li>
+      <li><strong>Passo 2</strong> — alocar os convocados: criar as datas de entrevista, puxar candidatos para cada uma e definir os horários de cada dia. Na entrevista presencial em que cada grupo é atendido num lugar diferente, marque <strong>Um local por tabela</strong> e preencha o local e o endereço em cada tabela.</li>
       <li><strong>Passo 3</strong> — preencher os dados da convocação (protocolo SEI, unidade, local, endereço…).</li>
       <li><strong>Passo 4</strong> — gerar o documento, conferir, editar, copiar ou salvar em PDF.</li>
       <li><strong>Passo 5</strong> — copiar os blocos separados para publicar o edital no Athos.</li>
@@ -89,12 +105,14 @@
           <option value="On-line">On-line</option>
         </select>
       </label>
+      <!-- só no presencial: cada tabela ganha local e endereço próprios -->
+      <label id="p18CampoLocalTabela" style="font-size:13px;color:var(--ink-soft);" title="Para quando cada grupo de convocados é entrevistado num local diferente (ex.: os 5 primeiros no gabinete e os demais na secretaria)"><input type="checkbox" id="p18LocalPorTabela"> Um local por tabela</label>
       <span style="width:1px;align-self:stretch;background:var(--paper-dark);"></span>
       <span style="font-size:13px;color:var(--ink-soft);">Colunas extras:</span>
       <label style="font-size:13px;color:var(--ink-soft);"><input type="checkbox" id="p18ColReserva"> Reserva</label>
       <label id="p18CampoColLink" style="font-size:13px;color:var(--ink-soft);"><input type="checkbox" id="p18ColLink"> Link</label>
       <label style="font-size:13px;color:var(--ink-soft);"><input type="checkbox" id="p18ColEmail"> E-mail</label>
-      <span class="file-name">a modalidade define a coluna Link e os campos do passo 3; Data e Horário aparecem sozinhos, conforme a alocação</span>
+      <span class="file-name">a modalidade define a coluna Link e os campos do passo 3; “Um local por tabela” (presencial) leva Local e Endereço para cada tabela; Data e Horário aparecem sozinhos, conforme a alocação</span>
     </div>
 
     <div class="painel-nova-data">
@@ -137,15 +155,18 @@
       <label style="font-size:12.5px;color:var(--ink-soft);">Ano do processo seletivo<br><input type="text" id="p18F_ano" style="width:100%;padding:8px;border:1px solid var(--line);"></label>
       <label style="font-size:12.5px;color:var(--ink-soft);">Protocolo SEI n°<br><input type="text" class="exemplo-input" id="p18F_sei" placeholder="Ex: 0040476-96.2026.8.16.6000" style="width:100%;padding:8px;border:1px solid var(--line);"></label>
       <label style="font-size:12.5px;color:var(--ink-soft);grid-column:1/-1;">Nome da unidade<br><textarea id="p18F_unidade" class="exemplo-input" style="min-height:58px;font-family:'Barlow',system-ui,sans-serif;font-size:13px;" placeholder="Ex: Gabinete do Desembargador Fulano de Tal"></textarea></label>
-      <label style="font-size:12.5px;color:var(--ink-soft);grid-column:1/-1;">Local<br><input type="text" class="exemplo-input" id="p18F_local" placeholder="Ex: Gabinete do Desembargador Fulano de Tal — ou, se on-line: Microsoft Teams" style="width:100%;padding:8px;border:1px solid var(--line);"></label>
-      <!-- Endereço só no presencial; LINK só no on-line (e some quando cada convocado tem o seu, no passo 2) -->
-      <label id="p18CampoEndereco" style="font-size:12.5px;color:var(--ink-soft);grid-column:1/-1;">Endereço<br><input type="text" class="exemplo-input" id="p18F_endereco" placeholder="Ex: Palácio da Justiça, 7º andar, sala 706, Curitiba/PR" style="width:100%;padding:8px;border:1px solid var(--line);"></label>
+      <!-- Local e Endereço únicos somem quando "Um local por tabela" está ligado (passo 2) -->
+      <label id="p18CampoLocal" style="font-size:12.5px;color:var(--ink-soft);grid-column:1/-1;">Local<br><input type="text" class="exemplo-input" id="p18F_local" placeholder="Ex: Gabinete do Desembargador Fulano de Tal — ou, se on-line: Microsoft Teams" style="width:100%;padding:8px;border:1px solid var(--line);"></label>
+      <!-- Endereço só no presencial; LINK só no on-line (e some quando cada convocado tem o seu, no passo 2).
+           O endereço aceita Enter: cada linha vira uma quebra de linha no documento. -->
+      <label id="p18CampoEndereco" style="font-size:12.5px;color:var(--ink-soft);grid-column:1/-1;">Endereço<br><textarea class="exemplo-input" id="p18F_endereco" placeholder="Ex: Palácio da Justiça, 7º andar, sala 706, Curitiba/PR — Enter passa para a linha de baixo" style="min-height:58px;font-family:'Barlow',system-ui,sans-serif;font-size:13px;"></textarea></label>
+      <div class="notice-banner" id="p18NotaLocalTabela" style="margin:0;grid-column:1/-1;display:none;"><strong>Um local por tabela está ligado (passo 2).</strong> O local e o endereço de cada tabela são preenchidos no bloco dela, no passo 2. O Local e o Endereço únicos ficam guardados, mas não entram no documento enquanto a opção estiver marcada.</div>
       <label id="p18CampoLink" style="font-size:12.5px;color:var(--ink-soft);grid-column:1/-1;">Link da sala virtual<br><input type="text" class="exemplo-input" id="p18F_link" placeholder="Ex: https://teams.microsoft.com/l/meetup-join/..." style="width:100%;padding:8px;border:1px solid var(--line);"></label>
       <label style="font-size:12.5px;color:var(--ink-soft);grid-column:1/-1;">Observações<br><textarea id="p18F_observacoes" style="min-height:80px;font-family:'Barlow',system-ui,sans-serif;font-size:13px;"></textarea></label>
     </div>
     <div class="notice-banner warn" id="p18AvisoLink" style="margin-left:0;display:none;"></div>
     <div class="notice-banner" id="p18ResumoAlocacao" style="margin-left:0;"></div>
-    <p class="step-desc" style="font-size:12.5px;">Data e horário vêm da alocação feita no passo 2, e é lá que fica a <strong>modalidade</strong> — é ela que decide se aqui aparece o Endereço ou o Link da sala. Em observações, cada linha vira um parágrafo.</p>
+    <p class="step-desc" style="font-size:12.5px;">Data e horário vêm da alocação feita no passo 2, e é lá que fica a <strong>modalidade</strong> — é ela que decide se aqui aparece o Endereço ou o Link da sala. No endereço, cada Enter vira uma quebra de linha no documento; em observações, cada linha vira um parágrafo.</p>
     <div class="step-content" style="margin-top:18px;">
       <button type="button" class="run-btn" id="p18BtnGerar">Gerar convocação</button>
     </div>

@@ -16,6 +16,11 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.25", data:"2026-10-14", titulo:"Ponto 18: endereço em várias linhas e um local por tabela na entrevista presencial",
+    itens:["O campo \"Endereço\" do passo 3 passa a aceitar Enter: cada linha digitada vira uma quebra de linha no documento e no Bloco 5 do Athos, com o ponto final só no fim da última.",
+           "Nova opção \"Um local por tabela\" (passo 2, só na entrevista presencial): cada tabela ganha os próprios campos de local e endereço, e o documento sai com as linhas DATA, HORÁRIO, LOCAL e ENDEREÇO acima de cada tabela. Serve para quando cada grupo de convocados é entrevistado num lugar diferente.",
+           "Com a opção ligada, os blocos passam a se chamar \"1ª tabela\", \"2ª tabela\"…, a mesma data pode se repetir sem alerta, e a ferramenta avisa quando falta local ou endereço numa tabela, ou quando duas tabelas têm a mesma data, local e endereço.",
+           "Local e Endereço únicos do passo 3 continuam guardados enquanto a opção está ligada, e voltam a valer ao desmarcá-la. Rascunhos antigos abrem normalmente, com a opção desligada."] },
   { v:"3.24", data:"2026-10-09", titulo:"Resultado Final sem nuvem; reservas reconhecidas do mesmo jeito em todo o portal",
     itens:["Resultado Final (Unidades externas): a tabela deixa de ser gravada na nuvem. Nome, e-mail, notas e data de nascimento dos candidatos ficam só no computador de quem preenche (rascunho automático do navegador e arquivo .json da caixa \"Rascunho\").",
             "\"Finalizar preenchimento\" passa a apenas conferir, bloquear a edição e liberar o PDF e o CSV, que continuam iguais. A área administrativa (busca, exclusão e backup da base) foi retirada.",

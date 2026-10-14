@@ -320,6 +320,10 @@ var estado={
     ano:String(new Date().getFullYear()),
     sei:'', unidade:'',
     modalidade:'Presencial', local:'', endereco:'', link:'',
+    // "Um local por tabela" (só presencial): local e endereço passam a morar
+    // em cada dia do passo 2. A caixa de marcar NÃO tem id p18F_, para que
+    // lerCamposDoc/escreverCamposDoc não a tratem como campo de texto.
+    localPorTabela:false,
     observacoes:'O candidato que não comparecer à entrevista será desclassificado do processo seletivo.',
     // exclusivos da publicação no Athos (passo 5)
     dataAthos:'',
@@ -431,8 +435,21 @@ function importarRelatorio(aoa){
 function novoDia(data){
   return {id:estado.diaSeq++, data:String(data||''),
           horarioModo:'individual',        // 'individual' | 'geral'
-          horaInicial:'14h00', intervalo:15, horarioGeral:''};
+          horaInicial:'14h00', intervalo:15, horarioGeral:'',
+          local:'', endereco:''};          // só usados com "Um local por tabela"
 }
+
+/* Um local por tabela (só no presencial): cada tabela do passo 2 leva o seu
+   próprio LOCAL e ENDEREÇO, e o documento sai com um conjunto DATA / HORÁRIO /
+   LOCAL / ENDEREÇO acima de cada tabela. Veio de um pedido real: os cinco
+   primeiros colocados entrevistados no gabinete e os demais na secretaria, no
+   mesmo dia e horário. No on-line a opção não existe — lá, sala diferente por
+   convocado já é resolvida pela coluna Link. A marcação fica guardada mesmo no
+   on-line: voltar para presencial devolve tudo como estava. */
+function usaLocalPorTabela(){ return !!estado.doc.localPorTabela && !ehOnline(); }
+// Com um local por tabela, duas tabelas podem ter a mesma data: "1º dia" e
+// "2º dia" enganariam. Aí o bloco passa a se chamar "1ª tabela", "2ª tabela".
+function rotuloDia(k){ return usaLocalPorTabela() ? (k+1)+'ª tabela' : (k+1)+'º dia'; }
 function diaPorId(id){
   var achado=null;
   estado.dias.forEach(function(d){ if(d.id===id) achado=d; });
@@ -491,7 +508,8 @@ function fmtDataBarra(d){
 function criarData(){
   var data=String($('p18NovaData').value||'').trim();
   if(!lerDataBarra(data)){ alert('Informe a data da entrevista no formato dd/mm/aaaa.'); return; }
-  if(estado.dias.some(function(d){ return d.data===data; })){
+  // com um local por tabela, repetir a data é o caso normal (mesmo dia, outro local)
+  if(!usaLocalPorTabela() && estado.dias.some(function(d){ return d.data===data; })){
     if(!confirm('Já existe um dia com a data '+data+'. Criar assim mesmo?')) return;
   }
 
@@ -562,12 +580,26 @@ function precisaColunaHora(){
       : comNome(linhasDoDia(d.id)).some(function(c){ return !!c.hora; });
   });
 }
-function colunasAtivas(){
+function colunasBase(){
   var cols=[{k:'inscricao', t:'INSCRIÇÃO'}, {k:'nome', t:'NOME DO ESTUDANTE'}, {k:'nota', t:'NOTA'}];
   if(estado.cols.reserva) cols.push({k:'reserva', t:'RESERVA'});
+  return cols;
+}
+function colunasAtivas(){
+  var cols=colunasBase();
   if(precisaColunaData())  cols.push({k:'data', t:'DATA'});
   if(precisaColunaHora())  cols.push({k:'hora', t:'HORÁRIO'});
   if(estado.cols.link)     cols.push({k:'link', t:'LINK'});
+  return cols;
+}
+// Colunas de UMA tabela, no modo "Um local por tabela": a data já está na
+// linha DATA: acima dela, então a coluna DATA nunca é necessária; HORÁRIO só
+// aparece na tabela que usa horário por candidato. Link não entra (só presencial).
+function colunasDoDia(dia){
+  var cols=colunasBase();
+  var temHora = dia.horarioModo!=='geral'
+    && comNome(linhasDoDia(dia.id)).some(function(c){ return !!c.hora; });
+  if(temHora) cols.push({k:'hora', t:'HORÁRIO'});
   return cols;
 }
 // Horário que vale para um candidato: o do dia, quando o dia usa horário único.
@@ -607,12 +639,17 @@ function avisosGrade(){
       +(sobrando.length>6?'…':'')+'.'});
   }
 
+  var porTabela=usaLocalPorTabela();
   estado.dias.forEach(function(d,k){
-    var rotulo=(k+1)+'º dia';
+    var rotulo=rotuloDia(k);
     var lista=comNome(linhasDoDia(d.id));
     if(!String(d.data||'').trim()) av.push({txt:rotulo+': sem data preenchida.'});
     else if(!lerDataBarra(d.data)) av.push({txt:rotulo+': a data “'+d.data+'” não está no formato dd/mm/aaaa.'});
     if(!lista.length){ av.push({txt:rotulo+' ('+(d.data||'sem data')+'): nenhum candidato — não será impresso.'}); return; }
+    if(porTabela){
+      if(!String(d.local||'').trim())    av.push({txt:rotulo+' ('+(d.data||'sem data')+'): local não preenchido — a linha LOCAL não sai para esta tabela.'});
+      if(!String(d.endereco||'').trim()) av.push({txt:rotulo+' ('+(d.data||'sem data')+'): endereço não preenchido — a linha ENDEREÇO não sai para esta tabela.'});
+    }
     if(d.horarioModo==='geral'){
       if(!String(d.horarioGeral||'').trim())
         av.push({txt:rotulo+': horário único para o dia ainda não informado.'});
@@ -629,13 +666,20 @@ function avisosGrade(){
     }
   });
 
-  // datas repetidas entre dias
+  // Datas repetidas entre dias. Com um local por tabela, repetir a data é o
+  // normal (mesmo dia, outro local): só vale avisar quando local e endereço
+  // também são iguais — aí as duas tabelas poderiam ser uma só.
   var porData={};
   estado.dias.forEach(function(d,k){
     var v=String(d.data||'').trim();
     if(!v) return;
-    if(porData[v]) av.push({txt:(k+1)+'º dia: a data '+v+' já é a do '+porData[v]+'º dia.'});
-    else porData[v]=k+1;
+    var chave = porTabela ? [v, normHeader(d.local), normHeader(d.endereco)].join('|') : v;
+    if(porData[chave]!==undefined){
+      av.push({txt: porTabela
+        ? rotuloDia(k)+': data, local e endereço iguais aos da '+rotuloDia(porData[chave])+' — as duas tabelas poderiam ser uma só.'
+        : rotuloDia(k)+': a data '+v+' já é a do '+rotuloDia(porData[chave])+'.'});
+    }
+    else porData[chave]=k;
   });
 
   // Empate na última colocação — item 6 do edital
@@ -723,12 +767,12 @@ function renderQuadro(){
     var individual = d.horarioModo!=='geral';
     h+='<section class="bloco-dia" data-dia="'+d.id+'">';
     h+='<div class="bloco-dia-cab">'
-      +'<p class="bloco-dia-tit">'+(k+1)+'º dia</p>'
+      +'<p class="bloco-dia-tit">'+rotuloDia(k)+'</p>'
       +'<label class="campo-vert campo-data">data'
       +'<input type="text" class="p18DataDia" data-dia="'+d.id+'" value="'+esc(d.data)+'" placeholder="Ex: 30/07/2026">'
       +'</label>'
       +'<span class="bloco-dia-qtd">'+n+' candidato'+(n===1?'':'s')+'</span>'
-      +'<span class="bloco-dia-acoes"><button type="button" class="link-btn p18DiaAct" data-a="desfazer" data-dia="'+d.id+'" title="Devolve os candidatos para “A atribuir”">Desfazer dia</button></span>'
+      +'<span class="bloco-dia-acoes"><button type="button" class="link-btn p18DiaAct" data-a="desfazer" data-dia="'+d.id+'" title="Devolve os candidatos para “A atribuir”">Desfazer '+(usaLocalPorTabela()?'tabela':'dia')+'</button></span>'
       +'</div>';
 
     h+='<div class="bloco-dia-horarios">'
@@ -744,6 +788,19 @@ function renderQuadro(){
       h+='<label class="campo-vert campo-hora">horário do dia<input type="text" class="p18HoraGeral" data-dia="'+d.id+'" value="'+esc(d.horarioGeral)+'" placeholder="Ex: 14h00min"></label>';
     }
     h+='</div>';
+
+    // Um local por tabela: local e endereço desta tabela, logo abaixo dos
+    // horários. O endereço aceita Enter, como o campo único do passo 3.
+    if(usaLocalPorTabela()){
+      h+='<div class="bloco-dia-horarios p18-local-tabela">'
+        +'<label class="campo-vert">local'
+        +'<input type="text" class="p18LocalDia" data-dia="'+d.id+'" value="'+esc(d.local)+'" placeholder="Ex: Secretaria da 1ª Vara Cível">'
+        +'</label>'
+        +'<label class="campo-vert">endereço'
+        +'<textarea class="p18EnderecoDia" data-dia="'+d.id+'" placeholder="Ex: Fórum da Comarca, 1º andar, Rua Fulano de Tal, nº 100, Curitiba/PR — Enter passa para a linha de baixo">'+esc(d.endereco)+'</textarea>'
+        +'</label>'
+        +'</div>';
+    }
 
     h+='<div class="bloco-dia-corpo">'+tabelaDoBloco(lista, individual)+'</div>';
     h+='</section>';
@@ -824,6 +881,17 @@ function ligarEventosDoQuadro(){
     inp.addEventListener('input', function(){
       var d=diaPorId(Number(inp.dataset.dia));
       if(d) d.horarioGeral=inp.value;
+      atualizarAvisos();
+      atualizarResumoAlocacao();
+    });
+  });
+  // local e endereço por tabela: só estado e avisos, sem redesenhar (foco)
+  Array.prototype.forEach.call(q.querySelectorAll('.p18LocalDia, .p18EnderecoDia'), function(el){
+    el.addEventListener('input', function(){
+      var d=diaPorId(Number(el.dataset.dia));
+      if(!d) return;
+      if(el.classList.contains('p18LocalDia')) d.local=el.value;
+      else d.endereco=el.value;
       atualizarAvisos();
       atualizarResumoAlocacao();
     });
@@ -922,14 +990,18 @@ function atualizarResumoAlocacao(){
     el.innerHTML='Nenhum candidato alocado ainda — volte ao passo 2 e crie ao menos uma data de entrevista.';
     return;
   }
+  var porTabela=usaLocalPorTabela();
   var partes=dias.map(function(d){
     var n=comNome(linhasDoDia(d.id)).length;
     var hora = d.horarioModo==='geral'
       ? (String(d.horarioGeral||'').trim() || 'horário a definir')
       : 'horário por candidato';
-    return '<strong>'+esc(d.data||'sem data')+'</strong> — '+n+' candidato(s), '+esc(hora);
+    return '<strong>'+esc(d.data||'sem data')+'</strong> — '+n+' candidato(s), '+esc(hora)
+      + (porTabela ? ' · '+esc(String(d.local||'').trim() || 'local a definir') : '');
   });
-  var formato = (dias.length===1 && dias[0].horarioModo==='geral')
+  var formato = porTabela
+    ? 'Um local por tabela: cada tabela sai com as próprias linhas DATA, HORÁRIO, LOCAL e ENDEREÇO acima dela, na ordem do passo 2.'
+    : (dias.length===1 && dias[0].horarioModo==='geral')
     ? 'A data e o horário serão impressos acima da tabela, como nas convocações já expedidas.'
     : (dias.length>1
         ? 'Como há mais de um dia, a tabela sai com as colunas DATA e HORÁRIO.'
@@ -1145,8 +1217,20 @@ function aplicarModalidade(){
     renderQuadro();
   }
 
+  // "Um local por tabela" só existe no presencial; no on-line a caixa some, mas
+  // a marcação e o que foi digitado em cada tabela continuam guardados.
+  var campoLocTab=$('p18CampoLocalTabela');
+  if(campoLocTab) campoLocTab.style.display = online ? 'none' : '';
+  var porTabela=usaLocalPorTabela();
+
+  // Com um local por tabela, Local e Endereço únicos dariam uma segunda fonte
+  // para a mesma informação: saem da tela e uma nota explica onde ela está.
+  var campoLocal=$('p18CampoLocal'), notaLocTab=$('p18NotaLocalTabela');
+  if(campoLocal) campoLocal.style.display = porTabela ? 'none' : '';
+  if(notaLocTab) notaLocTab.style.display = porTabela ? '' : 'none';
+
   var campoEnd=$('p18CampoEndereco'), campoLink=$('p18CampoLink');
-  if(campoEnd)  campoEnd.style.display  = online ? 'none' : '';
+  if(campoEnd)  campoEnd.style.display  = (online || porTabela) ? 'none' : '';
   if(campoLink) campoLink.style.display = (online && !usaLinkPorCandidato()) ? '' : 'none';
   atualizarAvisoLink();
 }
@@ -1172,6 +1256,7 @@ function sincronizarControles(){
   $('p18ColReserva').checked=!!estado.cols.reserva;
   $('p18ColLink').checked=!!estado.cols.link;
   $('p18ColEmail').checked=!!estado.cols.email;
+  $('p18LocalPorTabela').checked=!!estado.doc.localPorTabela;
   // "Todos os restantes" dispensa a caixa de quantidade
   var especificar = $('p18QuantosModo').value==='especificar';
   $('p18CampoQuantos').style.display = especificar ? 'flex' : 'none';
@@ -1261,13 +1346,18 @@ function celulaTexto(c, col){
   return '';
 }
 
-function tabelaHtml(lh){
+// Sem `listaDada`/`colsDadas`, monta a tabela única com todos os alocados.
+// Com eles, monta a tabela de um só dia (modo "Um local por tabela").
+function tabelaHtml(lh, listaDada, colsDadas){
   var lhCel=lh||LH_CELULA;
-  var cols=colunasAtivas();
+  var cols=colsDadas||colunasAtivas();
   // só os alocados entram no documento; quem ficou em "A atribuir" é apontado
   // como pendência nos avisos do passo 2, nunca impresso em silêncio
-  var lista=[];
-  diasComCandidatos().forEach(function(d){ lista=lista.concat(comNome(linhasDoDia(d.id))); });
+  var lista=listaDada;
+  if(!lista){
+    lista=[];
+    diasComCandidatos().forEach(function(d){ lista=lista.concat(comNome(linhasDoDia(d.id))); });
+  }
   if(!lista.length) return '';
 
   // Larguras dos modelos quando cabem na folha. Passando disso (caso de
@@ -1333,34 +1423,48 @@ function conteudoHtml(lh, lhCel){
     return '<p style="'+P+'">'+neg(esc(rotulo))+(valorHtml ? ' '+valorHtml : '')+'</p>';
   }
 
-  // Havendo um único dia, data e horário vão para as linhas acima da tabela —
-  // formato das convocações já expedidas. Com mais de um dia, ou horário por
-  // candidato, a informação está nas colunas e estas linhas somem.
+  var respiro='<p style="margin:0 0 28pt;line-height:'+(lh||LH_DOC)+';">&nbsp;</p>';
   var dias=diasComCandidatos();
-  if(dias.length===1){
-    h+=linha('DATA:', esc(dias[0].data||'__/__/____'));
-    if(dias[0].horarioModo==='geral' && String(dias[0].horarioGeral||'').trim())
-      h+=linha('HORÁRIO:', esc(dias[0].horarioGeral.trim()));
-  }
-  // LOCAL sempre traz a modalidade na frente ("Presencial | " ou "On-line | ").
-  if(String(d.local||'').trim())
-    h+=linha('LOCAL:', esc(normalizarModalidade(d.modalidade))+' | '+esc(comPontoFinal(d.local)));
-  // Presencial imprime o ENDEREÇO; on-line imprime o LINK da sala — e só quando
-  // o link não é por candidato (aí ele já está na coluna da tabela).
-  if(!ehOnline() && String(d.endereco||'').trim()){
-    var end=String(d.endereco).trim();
-    var valorEnd = ehUrl(end)
-      ? '<a href="'+esc(comHttp(end))+'" style="color:#0563c1;text-decoration:underline;">'+esc(end)+'</a>'
-      : esc(comPontoFinal(end));
-    h+=linha('ENDEREÇO:', valorEnd);
-  }
-  if(ehOnline() && !usaLinkPorCandidato() && String(d.link||'').trim()){
-    var lk=String(d.link).trim();
-    h+=linha('LINK:', '<a href="'+esc(comHttp(lk))+'" style="color:#0563c1;text-decoration:underline;">'+esc(lk)+'</a>');
-  }
 
-  // tabela dos convocados (sem convocados, mantém o respiro entre os blocos)
-  h += tabelaHtml(lhCel) || '<p style="margin:0 0 28pt;line-height:'+(lh||LH_DOC)+';">&nbsp;</p>';
+  if(usaLocalPorTabela()){
+    // Um local por tabela: cada tabela leva acima dela o seu conjunto completo
+    // DATA / HORÁRIO / LOCAL / ENDEREÇO — mesmo quando a data e o horário se
+    // repetem entre as tabelas, para que cada grupo se leia sozinho.
+    dias.forEach(function(dia){
+      h+=linha('DATA:', esc(dia.data||'__/__/____'));
+      if(dia.horarioModo==='geral' && String(dia.horarioGeral||'').trim())
+        h+=linha('HORÁRIO:', esc(dia.horarioGeral.trim()));
+      if(String(dia.local||'').trim())
+        h+=linha('LOCAL:', esc(normalizarModalidade(d.modalidade))+' | '+esc(comPontoFinal(dia.local)));
+      if(String(dia.endereco||'').trim())
+        h+=linha('ENDEREÇO:', enderecoHtml(dia.endereco));
+      h+=tabelaHtml(lhCel, comNome(linhasDoDia(dia.id)), colunasDoDia(dia));
+    });
+    if(!dias.length) h+=respiro;
+  } else {
+    // Havendo um único dia, data e horário vão para as linhas acima da tabela —
+    // formato das convocações já expedidas. Com mais de um dia, ou horário por
+    // candidato, a informação está nas colunas e estas linhas somem.
+    if(dias.length===1){
+      h+=linha('DATA:', esc(dias[0].data||'__/__/____'));
+      if(dias[0].horarioModo==='geral' && String(dias[0].horarioGeral||'').trim())
+        h+=linha('HORÁRIO:', esc(dias[0].horarioGeral.trim()));
+    }
+    // LOCAL sempre traz a modalidade na frente ("Presencial | " ou "On-line | ").
+    if(String(d.local||'').trim())
+      h+=linha('LOCAL:', esc(normalizarModalidade(d.modalidade))+' | '+esc(comPontoFinal(d.local)));
+    // Presencial imprime o ENDEREÇO; on-line imprime o LINK da sala — e só quando
+    // o link não é por candidato (aí ele já está na coluna da tabela).
+    if(!ehOnline() && String(d.endereco||'').trim())
+      h+=linha('ENDEREÇO:', enderecoHtml(d.endereco));
+    if(ehOnline() && !usaLinkPorCandidato() && String(d.link||'').trim()){
+      var lk=String(d.link).trim();
+      h+=linha('LINK:', '<a href="'+esc(comHttp(lk))+'" style="color:#0563c1;text-decoration:underline;">'+esc(lk)+'</a>');
+    }
+
+    // tabela dos convocados (sem convocados, mantém o respiro entre os blocos)
+    h += tabelaHtml(lhCel) || respiro;
+  }
 
   // observações (cada linha digitada vira um parágrafo; só a etiqueta é negrito)
   var obs=String(d.observacoes||'').split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
@@ -1373,6 +1477,20 @@ function conteudoHtml(lh, lhCel){
     }
   }
   return h;
+}
+
+/* Endereço com quebras de linha: o campo aceita Enter, para quem precisa
+   acrescentar referências (andar, sala, entrada, ponto de referência). Cada
+   linha digitada vira uma quebra de linha dentro do mesmo parágrafo ENDEREÇO:
+   e o ponto final entra só no fim da última — no meio, vale a pontuação que a
+   pessoa digitou. Linhas em branco são ignoradas, como nas observações. Linha
+   que é só um endereço da web vira link, como já acontecia com o campo único. */
+function enderecoHtml(txt){
+  var linhas=String(txt||'').split(/\r?\n/).map(function(l){ return l.trim(); }).filter(Boolean);
+  return linhas.map(function(l, i){
+    if(ehUrl(l)) return '<a href="'+esc(comHttp(l))+'" style="color:#0563c1;text-decoration:underline;">'+esc(l)+'</a>';
+    return esc(i===linhas.length-1 ? comPontoFinal(l) : l);
+  }).join('<br>');
 }
 
 function gerarDocumento(){
@@ -1403,15 +1521,24 @@ function gerarDocumento(){
   var faltando=[];
   if(!String(d.sei).trim())      faltando.push('protocolo SEI');
   if(!String(d.unidade).trim())  faltando.push('nome da unidade');
-  if(!String(d.local).trim())    faltando.push('local');
   var diasDoc=diasComCandidatos();
+  var porTabela=usaLocalPorTabela();
+  var unidadeDia = porTabela ? 'tabela(s)' : 'dia(s) de entrevista';
+  if(porTabela){
+    var semLocal=diasDoc.filter(function(x){ return !String(x.local||'').trim(); }).length;
+    if(semLocal) faltando.push(semLocal+' tabela(s) sem local (passo 2)');
+    var semEnd=diasDoc.filter(function(x){ return !String(x.endereco||'').trim(); }).length;
+    if(semEnd) faltando.push(semEnd+' tabela(s) sem endereço (passo 2)');
+  } else if(!String(d.local).trim()){
+    faltando.push('local');
+  }
   if(!diasDoc.length) faltando.push('alocar os convocados em ao menos uma data (passo 2)');
   var semData=diasDoc.filter(function(x){ return !String(x.data||'').trim(); }).length;
-  if(semData) faltando.push(semData+' dia(s) de entrevista sem data');
+  if(semData) faltando.push(semData+' '+unidadeDia+' sem data');
   var semHora=diasDoc.filter(function(x){
     return x.horarioModo==='geral' && !String(x.horarioGeral||'').trim();
   }).length;
-  if(semHora) faltando.push(semHora+' dia(s) com horário único ainda em branco');
+  if(semHora) faltando.push(semHora+' '+unidadeDia+' com horário único ainda em branco');
 
   $('p18MsgSaida').innerHTML = faltando.length
     ? '<span style="color:var(--coral);">Faltou preencher: '+esc(faltando.join(', '))+'.</span>'
@@ -1791,6 +1918,8 @@ function importarRascunho(file){
       if(!d || !Array.isArray(d.cands)) throw new Error('arquivo sem lista de convocados');
       estado.cols=Object.assign({reserva:false, link:false, email:false}, d.cols||{});
       estado.doc=Object.assign(estado.doc, d.doc||{});
+      // rascunho anterior à v3.25 não tem a marcação: fica desligada
+      estado.doc.localPorTabela=!!estado.doc.localPorTabela;
       // Antes desta versão a convocação on-line guardava o link da sala no
       // campo Endereço, que hoje só existe no presencial. Sem esta conversão o
       // rascunho antigo abriria sem o link — e ele sumiria do documento.
@@ -1811,6 +1940,8 @@ function importarRascunho(file){
           if(x.horaInicial) nd.horaInicial=x.horaInicial;
           if(x.intervalo!==undefined) nd.intervalo=x.intervalo;
           if(x.horarioGeral) nd.horarioGeral=x.horarioGeral;
+          if(x.local) nd.local=x.local;           // "Um local por tabela" (v3.25)
+          if(x.endereco) nd.endereco=x.endereco;
           mapaDia[x.id]=nd.id;
           estado.dias.push(nd);
         });
@@ -1892,7 +2023,14 @@ function iniciar(){
   });
   // A modalidade mora no passo 2, junto das colunas extras: é ela que libera a
   // coluna Link, e as duas coisas precisam estar ao alcance do mesmo olhar.
-  $('p18F_modalidade').addEventListener('change', aplicarModalidade);
+  // Redesenhar depois: a modalidade liga ou desliga o "Um local por tabela", e
+  // com ele os campos de local e endereço dentro de cada bloco.
+  $('p18F_modalidade').addEventListener('change', function(){ aplicarModalidade(); renderQuadro(); });
+  $('p18LocalPorTabela').addEventListener('change', function(e){
+    estado.doc.localPorTabela=e.target.checked;
+    aplicarModalidade();   // passo 3 troca Local/Endereço únicos pela nota
+    renderQuadro();        // os blocos ganham (ou perdem) local e endereço
+  });
   ativarMascaraData($('p18NovaData'));
   ativarBotaoCalendario($('p18NovaData'));
   $('p18QuantosModo').addEventListener('change', sincronizarControles);
