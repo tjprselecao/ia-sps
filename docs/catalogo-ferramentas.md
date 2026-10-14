@@ -102,14 +102,16 @@ Uma ficha por página. As funções citadas estão no `_logic.js` da ferramenta,
 - **Um local por tabela** (v3.25, só no presencial): é a caixa `p18LocalPorTabela`, gravada em `estado.doc.localPorTabela`.
   - Cada dia passa a guardar `local` e `endereco`, digitados no próprio bloco do passo 2. Local e Endereço únicos do passo 3 ficam ocultos e guardados.
   - O documento sai com DATA, HORÁRIO, LOCAL e ENDEREÇO acima de **cada** tabela, sem coluna DATA (`colunasDoDia`). OBSERVAÇÕES saem uma vez, no fim.
-  - Os blocos viram "1ª tabela", "2ª tabela"… (`rotuloDia`). Data repetida não gera alerta; o aviso só aparece quando data, local e endereço coincidem.
+  - Cada tabela vira um **grupo** (v3.25.1). O título é editável no cabeçalho do bloco (`p18TituloDia`) e vem preenchido com "Grupo N". Com `dia.titulo` vazio, vale o automático (`tituloAutomatico`/`tituloDoGrupo`/`rotuloDia`), que acompanha a ordem; um título editado fica fixo. Há aviso para título repetido.
+  - No documento, cada grupo abre com o título em maiúsculas e negrito, à esquerda. Do segundo grupo em diante, um `<hr>` o separa do anterior; é uma tag de verdade porque o Athos descarta `style`.
+  - Data repetida não gera alerta; o aviso só aparece quando data, local e endereço coincidem.
   - A modalidade on-line desativa a opção sem apagar a marcação. Veio de um pedido real: os 5 primeiros no gabinete e os demais na secretaria, no mesmo dia e horário.
 
 **Saídas**
 - Documento com logotipo (PDF por impressão).
 - 7 blocos do Athos (os blocos 2 a 4 em texto puro, `BLOCOS_TEXTO_PURO`).
 - Lista de e-mails separada por `; ` e assunto do e-mail.
-- Rascunho .json (`ponto18`, **versao 2**, com migração da 1). É a referência de rascunho. Desde a v3.25, os dias levam `local`/`endereco` e o `doc` leva `localPorTabela`; um rascunho antigo abre com a opção desligada.
+- Rascunho .json (`ponto18`, **versao 2**, com migração da 1). É a referência de rascunho. Desde a v3.25, os dias levam `local`/`endereco` (e `titulo`, na v3.25.1) e o `doc` leva `localPorTabela`; um rascunho antigo abre com a opção desligada.
 
 **Referências para reaproveitar:** `ativarBotaoCalendario`, `ativarBotaoRelogio`, `embrulharComBotao`, `interpretarHora`/`fmtHora`, `copiarConteudoEm`.
 

@@ -436,7 +436,8 @@ function novoDia(data){
   return {id:estado.diaSeq++, data:String(data||''),
           horarioModo:'individual',        // 'individual' | 'geral'
           horaInicial:'14h00', intervalo:15, horarioGeral:'',
-          local:'', endereco:''};          // só usados com "Um local por tabela"
+          // só usados com "Um local por tabela"; titulo vazio = "Grupo N" automático
+          local:'', endereco:'', titulo:''};
 }
 
 /* Um local por tabela (só no presencial): cada tabela do passo 2 leva o seu
@@ -447,9 +448,16 @@ function novoDia(data){
    convocado já é resolvida pela coluna Link. A marcação fica guardada mesmo no
    on-line: voltar para presencial devolve tudo como estava. */
 function usaLocalPorTabela(){ return !!estado.doc.localPorTabela && !ehOnline(); }
-// Com um local por tabela, duas tabelas podem ter a mesma data: "1º dia" e
-// "2º dia" enganariam. Aí o bloco passa a se chamar "1ª tabela", "2ª tabela".
-function rotuloDia(k){ return usaLocalPorTabela() ? (k+1)+'ª tabela' : (k+1)+'º dia'; }
+/* Com um local por tabela, duas tabelas podem ter a mesma data: "1º dia" e
+   "2º dia" enganariam. Aí cada bloco vira um GRUPO, com título que sai no
+   documento acima do conjunto DATA/HORÁRIO/LOCAL/ENDEREÇO — sem ele, no papel
+   não ficava claro a qual tabela cada local se referia (v3.25.1).
+   O título é editável. Enquanto ninguém mexe, `titulo` fica vazio e vale o
+   automático "Grupo N", que acompanha a ordem (desfazer o Grupo 1 faz o 2
+   virar 1). Texto digitado fica fixo, como a pessoa escreveu. */
+function tituloAutomatico(k){ return 'Grupo '+(k+1); }
+function tituloDoGrupo(d, k){ return String((d && d.titulo)||'').trim() || tituloAutomatico(k); }
+function rotuloDia(k){ return usaLocalPorTabela() ? tituloDoGrupo(estado.dias[k], k) : (k+1)+'º dia'; }
 function diaPorId(id){
   var achado=null;
   estado.dias.forEach(function(d){ if(d.id===id) achado=d; });
@@ -676,11 +684,23 @@ function avisosGrade(){
     var chave = porTabela ? [v, normHeader(d.local), normHeader(d.endereco)].join('|') : v;
     if(porData[chave]!==undefined){
       av.push({txt: porTabela
-        ? rotuloDia(k)+': data, local e endereço iguais aos da '+rotuloDia(porData[chave])+' — as duas tabelas poderiam ser uma só.'
+        ? rotuloDia(k)+': data, local e endereço iguais aos do '+rotuloDia(porData[chave])+' — os dois grupos poderiam ser um só.'
         : rotuloDia(k)+': a data '+v+' já é a do '+rotuloDia(porData[chave])+'.'});
     }
     else porData[chave]=k;
   });
+
+  // Dois grupos com o mesmo título deixariam o documento ambíguo — justamente
+  // o que o título existe para evitar.
+  if(porTabela){
+    var porTitulo={};
+    estado.dias.forEach(function(d,k){
+      var t=normHeader(tituloDoGrupo(d,k));
+      if(porTitulo[t]!==undefined)
+        av.push({txt:'O título “'+tituloDoGrupo(d,k)+'” se repete em dois grupos ('+(porTitulo[t]+1)+'º e '+(k+1)+'º blocos) — no documento não daria para distinguir um do outro.'});
+      else porTitulo[t]=k;
+    });
+  }
 
   // Empate na última colocação — item 6 do edital
   var todos=comNome(estado.cands).filter(function(c){ return c.nota!=null; });
@@ -766,13 +786,20 @@ function renderQuadro(){
     var n=comNome(lista).length;
     var individual = d.horarioModo!=='geral';
     h+='<section class="bloco-dia" data-dia="'+d.id+'">';
+    // Com um local por tabela, o título do bloco é o do grupo e é editável
+    // (vem preenchido com "Grupo N"); sem a opção, segue o "1º dia" fixo.
+    var tituloBloco = usaLocalPorTabela()
+      ? '<label class="campo-vert p18-titulo-grupo">título do grupo'
+        +'<input type="text" class="p18TituloDia" data-dia="'+d.id+'" value="'+esc(tituloDoGrupo(d,k))+'">'
+        +'</label>'
+      : '<p class="bloco-dia-tit">'+rotuloDia(k)+'</p>';
     h+='<div class="bloco-dia-cab">'
-      +'<p class="bloco-dia-tit">'+rotuloDia(k)+'</p>'
+      +tituloBloco
       +'<label class="campo-vert campo-data">data'
       +'<input type="text" class="p18DataDia" data-dia="'+d.id+'" value="'+esc(d.data)+'" placeholder="Ex: 30/07/2026">'
       +'</label>'
       +'<span class="bloco-dia-qtd">'+n+' candidato'+(n===1?'':'s')+'</span>'
-      +'<span class="bloco-dia-acoes"><button type="button" class="link-btn p18DiaAct" data-a="desfazer" data-dia="'+d.id+'" title="Devolve os candidatos para “A atribuir”">Desfazer '+(usaLocalPorTabela()?'tabela':'dia')+'</button></span>'
+      +'<span class="bloco-dia-acoes"><button type="button" class="link-btn p18DiaAct" data-a="desfazer" data-dia="'+d.id+'" title="Devolve os candidatos para “A atribuir”">Desfazer '+(usaLocalPorTabela()?'grupo':'dia')+'</button></span>'
       +'</div>';
 
     h+='<div class="bloco-dia-horarios">'
@@ -896,6 +923,23 @@ function ligarEventosDoQuadro(){
       atualizarResumoAlocacao();
     });
   });
+  // Título do grupo: digitar o próprio "Grupo N" (o automático daquela
+  // posição) é o mesmo que não mexer — continua acompanhando a ordem.
+  Array.prototype.forEach.call(q.querySelectorAll('.p18TituloDia'), function(inp){
+    inp.addEventListener('input', function(){
+      var d=diaPorId(Number(inp.dataset.dia));
+      if(!d) return;
+      var auto=tituloAutomatico(indiceDoDia(d.id));
+      d.titulo = normHeader(inp.value)===normHeader(auto) ? '' : inp.value;
+      atualizarAvisos();
+      atualizarResumoAlocacao();
+    });
+    // campo apagado volta a mostrar o automático, que é o que vai sair impresso
+    inp.addEventListener('blur', function(){
+      var d=diaPorId(Number(inp.dataset.dia));
+      if(d && !String(inp.value).trim()) inp.value=tituloDoGrupo(d, indiceDoDia(d.id));
+    });
+  });
   Array.prototype.forEach.call(q.querySelectorAll('.p18ModoHora'), function(r){
     r.addEventListener('change', function(){
       var d=diaPorId(Number(r.dataset.dia));
@@ -996,11 +1040,12 @@ function atualizarResumoAlocacao(){
     var hora = d.horarioModo==='geral'
       ? (String(d.horarioGeral||'').trim() || 'horário a definir')
       : 'horário por candidato';
-    return '<strong>'+esc(d.data||'sem data')+'</strong> — '+n+' candidato(s), '+esc(hora)
+    return (porTabela ? '<strong>'+esc(tituloDoGrupo(d, indiceDoDia(d.id)))+'</strong> · ' : '')
+      + '<strong>'+esc(d.data||'sem data')+'</strong> — '+n+' candidato(s), '+esc(hora)
       + (porTabela ? ' · '+esc(String(d.local||'').trim() || 'local a definir') : '');
   });
   var formato = porTabela
-    ? 'Um local por tabela: cada tabela sai com as próprias linhas DATA, HORÁRIO, LOCAL e ENDEREÇO acima dela, na ordem do passo 2.'
+    ? 'Um local por tabela: cada grupo sai com o título dele e as próprias linhas DATA, HORÁRIO, LOCAL e ENDEREÇO acima da tabela, separado do seguinte por uma linha, na ordem do passo 2.'
     : (dias.length===1 && dias[0].horarioModo==='geral')
     ? 'A data e o horário serão impressos acima da tabela, como nas convocações já expedidas.'
     : (dias.length>1
@@ -1430,7 +1475,15 @@ function conteudoHtml(lh, lhCel){
     // Um local por tabela: cada tabela leva acima dela o seu conjunto completo
     // DATA / HORÁRIO / LOCAL / ENDEREÇO — mesmo quando a data e o horário se
     // repetem entre as tabelas, para que cada grupo se leia sozinho.
-    dias.forEach(function(dia){
+    // Abre com o título do grupo (negrito, à esquerda, como as etiquetas) e,
+    // do segundo em diante, uma linha horizontal separa um grupo do anterior:
+    // só com as linhas DATA/LOCAL, no papel não ficava claro qual local era de
+    // qual tabela. A linha é um <hr> de verdade porque o Athos descarta o
+    // atributo style — uma borda feita por CSS sumiria na colagem.
+    var P_GRUPO='margin:0 0 4pt;text-align:left;font-weight:bold;'+corpoCss(lh||LH_DOC);
+    dias.forEach(function(dia, i){
+      if(i>0) h+='<hr style="border:0;border-top:1pt solid #000000;height:0;margin:0 0 14pt;">';
+      h+='<p style="'+P_GRUPO+'">'+neg(esc(rotuloDia(indiceDoDia(dia.id)).toUpperCase()))+'</p>';
       h+=linha('DATA:', esc(dia.data||'__/__/____'));
       if(dia.horarioModo==='geral' && String(dia.horarioGeral||'').trim())
         h+=linha('HORÁRIO:', esc(dia.horarioGeral.trim()));
@@ -1523,12 +1576,12 @@ function gerarDocumento(){
   if(!String(d.unidade).trim())  faltando.push('nome da unidade');
   var diasDoc=diasComCandidatos();
   var porTabela=usaLocalPorTabela();
-  var unidadeDia = porTabela ? 'tabela(s)' : 'dia(s) de entrevista';
+  var unidadeDia = porTabela ? 'grupo(s)' : 'dia(s) de entrevista';
   if(porTabela){
     var semLocal=diasDoc.filter(function(x){ return !String(x.local||'').trim(); }).length;
-    if(semLocal) faltando.push(semLocal+' tabela(s) sem local (passo 2)');
+    if(semLocal) faltando.push(semLocal+' grupo(s) sem local (passo 2)');
     var semEnd=diasDoc.filter(function(x){ return !String(x.endereco||'').trim(); }).length;
-    if(semEnd) faltando.push(semEnd+' tabela(s) sem endereço (passo 2)');
+    if(semEnd) faltando.push(semEnd+' grupo(s) sem endereço (passo 2)');
   } else if(!String(d.local).trim()){
     faltando.push('local');
   }
@@ -1942,6 +1995,7 @@ function importarRascunho(file){
           if(x.horarioGeral) nd.horarioGeral=x.horarioGeral;
           if(x.local) nd.local=x.local;           // "Um local por tabela" (v3.25)
           if(x.endereco) nd.endereco=x.endereco;
+          if(x.titulo) nd.titulo=x.titulo;        // título editado do grupo (v3.25.1)
           mapaDia[x.id]=nd.id;
           estado.dias.push(nd);
         });

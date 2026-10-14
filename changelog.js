@@ -16,6 +16,10 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.25.1", data:"2026-10-14", titulo:"Ponto 18: cada grupo identificado no documento quando há um local por tabela",
+    itens:["Com \"Um local por tabela\" ligado, cada tabela passa a ser um grupo: no documento e no Bloco 5 do Athos, ela sai com o título \"GRUPO 1\", \"GRUPO 2\"… em negrito acima das linhas DATA, HORÁRIO, LOCAL e ENDEREÇO, e uma linha horizontal separa um grupo do seguinte.",
+           "No passo 2, o título do bloco vem preenchido com \"Grupo 1\", \"Grupo 2\"… e pode ser editado (ex.: \"Grupo 1 — Gabinete\"). O documento imprime o título em maiúsculas. Sem edição, a numeração acompanha a ordem dos grupos.",
+           "Novo aviso quando dois grupos ficam com o mesmo título. Sem a opção ligada, o documento continua exatamente como antes."] },
   { v:"3.25", data:"2026-10-14", titulo:"Ponto 18: endereço em várias linhas e um local por tabela na entrevista presencial",
     itens:["O campo \"Endereço\" do passo 3 passa a aceitar Enter: cada linha digitada vira uma quebra de linha no documento e no Bloco 5 do Athos, com o ponto final só no fim da última.",
            "Nova opção \"Um local por tabela\" (passo 2, só na entrevista presencial): cada tabela ganha os próprios campos de local e endereço, e o documento sai com as linhas DATA, HORÁRIO, LOCAL e ENDEREÇO acima de cada tabela. Serve para quando cada grupo de convocados é entrevistado num lugar diferente.",
