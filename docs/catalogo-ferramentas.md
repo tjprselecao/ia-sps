@@ -54,6 +54,10 @@ Uma ficha por página. As funções citadas estão no `_logic.js` da ferramenta,
 - O campo Número do edital vem com `EDITAL N° $$(numerar automaticamente)%%`, que o Athos substitui ao salvar.
 - O bloco de data sai como "Curitiba, … ." (as outras ferramentas tiraram a cidade e o ponto; ver backlog).
 - O assinante padrão está em `FIELDS.ASSINANTE_*`.
+- **A numeração muda com o modelo.** Na prova on-line entra a seção "DA REALIZAÇÃO DAS PROVAS", e da convocação para entrevista em diante tudo desce uma posição (cota 7.1.3 em vez de 6.1.3; classificação final 8.1 em vez de 7.1). Empate em branco também tira um subitem. Por isso nenhuma referência a item é fixa:
+  - `corpoEditalHTML(registro)` anota o número que cada item recebeu (pelos campos do parágrafo e por `COTA`), e a ressalva da classificação final usa esse número;
+  - os rótulos do formulário e os avisos da leitura pegam o número em `numerosDosItens()`. No `label` de `FIELDS`, o número se escreve `item:CAMPO` entre chaves duplas e é trocado por `rotuloCampo`;
+  - ao acrescentar texto que cite outro item, use o mesmo registro, e nunca o número escrito à mão.
 
 ### Ponto 14 — Gerador do Edital de Ensalamento — `ponto_14.html`
 

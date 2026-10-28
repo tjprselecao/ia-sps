@@ -16,6 +16,9 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.25.2", data:"2026-10-28", titulo:"Edital de Abertura: referência ao item da cota certa também na prova on-line",
+    itens:["Na prova on-line, o item da classificação final (8.1) citava \"ressalvado o item 6.1.3\", mas nesse modelo o item da cota é o 7.1.3: a seção \"DA REALIZAÇÃO DAS PROVAS\" acrescenta uma posição à numeração. A ressalva passa a citar o número que o item da cota recebe no edital gerado, em qualquer modelo.",
+           "Os rótulos do formulário (convocação para entrevista, empate, cota e composição da prova) e os avisos da leitura do formulário também passam a mostrar o número certo para a modalidade escolhida, e mudam junto quando o eixo é trocado."] },
   { v:"3.25.1", data:"2026-10-14", titulo:"Ponto 18: cada grupo identificado no documento quando há um local por tabela",
     itens:["Com \"Um local por tabela\" ligado, cada tabela passa a ser um grupo: no documento e no Bloco 5 do Athos, ela sai com o título \"GRUPO 1\", \"GRUPO 2\"… em negrito acima das linhas DATA, HORÁRIO, LOCAL e ENDEREÇO, e uma linha horizontal separa um grupo do seguinte.",
            "No passo 2, o título do bloco vem preenchido com \"Grupo 1\", \"Grupo 2\"… e pode ser editado (ex.: \"Grupo 1 — Gabinete\"). O documento imprime o título em maiúsculas. Sem edição, a numeração acompanha a ordem dos grupos.",

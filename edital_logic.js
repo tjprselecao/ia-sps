@@ -20,7 +20,8 @@ const ORDINAIS = ["1º (primeiro)","2º (segundo)","3º (terceiro)","4º (quarto
 const LIMITES_121 = ["todos os candidatos que atingirem a pontuação mínima","apenas os 5 (cinco) melhores classificados","apenas os 10 (dez) melhores classificados","apenas os 15 (quinze) melhores classificados","apenas os 20 (vinte) melhores classificados"];
 const LIMITES_61 = ["a todos os candidatos que atingirem a nota mínima","a todos os candidatos que atingirem a pontuação mínima","limitada apenas aos 5 (cinco) melhores classificados","limitada apenas aos 10 (dez) melhores classificados","limitada apenas aos 15 (quinze) melhores classificados","limitada apenas aos 20 (vinte) melhores classificados"];
 
-/* def: valor inicial | grupo: agrupamento visual | show(): visibilidade conforme eixos */
+/* def: valor inicial | grupo: agrupamento visual | show(): visibilidade conforme eixos
+   {{item:X}} no label: número que o item recebe no modelo atual (ver numerosDosItens) */
 const FIELDS = {
   UNIDADE:            {grupo:'ident', full:true, req:true, label:'Unidade solicitante (nome por extenso, para o título do edital)', type:'text', def:'', hint:'Ex.: VARA DE EXECUÇÕES PENAIS E CORREGEDORIA DOS PRESÍDIOS DE FRANCISCO BELTRÃO'},
   NUM_EDITAL:         {grupo:'ident', req:true, label:'Número do edital (Nº/ano)', type:'text', def:'EDITAL N° $$(numerar automaticamente)%%', hint:'Ex.: 2870/2026', hintHtml:'<details class="ed-hint-details"><summary>Como obter a numeração no sistema Athos</summary>'
@@ -40,15 +41,15 @@ const FIELDS = {
   VIGENCIA:           {grupo:'corpo', label:'Vigência do processo seletivo', type:'select', opts:['1 (um) ano, não prorrogável','6 (seis) meses, prorrogável por igual período','3 (três) meses, prorrogável por igual período'], def:'1 (um) ano, não prorrogável'},
   PERIODO_INSCRICOES: {grupo:'corpo', label:'Item 4.3 — Disponibilidade das inscrições', type:'preset', opts:['a partir do quinto dia útil subsequente à publicação deste edital no Diário da Justiça Eletrônico (e-DJ), conforme o artigo 12 do Decreto Judiciário nº 345/2019','das 00h00min de [DATA DEFINIR] às 23h59min de [DATA DEFINIR]'], def:'a partir do quinto dia útil subsequente à publicação deste edital no Diário da Justiça Eletrônico (e-DJ), conforme o artigo 12 do Decreto Judiciário nº 345/2019', hint:'O texto do modelo original usa datas fixas; a opção do "quinto dia útil" segue os editais publicados recentemente'},
   INSCRICOES_SUBITEM: {grupo:'corpo', full:true, label:'Item 4.3.1 — Prazo das inscrições (deixe vazio para omitir o subitem)', type:'text', def:''},
-  COMPOSICAO_PROVA:   {grupo:'prova', label:'Composição da prova (item 5.2)', type:'textarea', def:'', hint:'Ex.: 10 (dez) questões objetivas avaliadas em 0,5 (zero vírgula cinco) ponto cada e 1 (uma) questão discursiva avaliada em 5 (cinco) pontos'},
+  COMPOSICAO_PROVA:   {grupo:'prova', label:'Composição da prova (item {{item:COMPOSICAO_PROVA}})', type:'textarea', def:'', hint:'Ex.: 10 (dez) questões objetivas avaliadas em 0,5 (zero vírgula cinco) ponto cada e 1 (uma) questão discursiva avaliada em 5 (cinco) pontos'},
   PRAZO_DISPONIBILIZACAO:{grupo:'prova', label:'Prazo de disponibilização da prova on-line', type:'text', fmt:'duracao', def:'', hint:'Formato: 00h00min (ex.: 04h00min)', show:a=>a.modal==='ON'},
   DURACAO_PROVA:      {grupo:'prova', label:'Duração da prova', type:'text', fmt:'duracao', def:'03h00min', hint:'Formato: 00h00min (ex.: 04h00min)'},
   DATA_PROVA_PRESENCIAL:{grupo:'prova', label:'Data, horário e local da prova presencial', type:'preset', opts:['A data, o horário e o local de aplicação da prova serão divulgados por meio de Edital de Ensalamento, a ser disponibilizado na respectiva página do processo seletivo, no portal do TJPR.','A data, o horário e o local de aplicação da prova serão divulgados por meio de documento oficial de ensalamento.','A prova será realizada presencialmente em 00/00/0000, das 00h00min às 00h00min, no [LOCAL], situado à [ENDEREÇO].','A prova será realizada presencialmente em 00/00/0000, das 00h00min às 00h00min. O local de aplicação da prova será divulgado por meio de documento oficial de ensalamento.'], def:'A data, o horário e o local de aplicação da prova serão divulgados por meio de Edital de Ensalamento, a ser disponibilizado na respectiva página do processo seletivo, no portal do TJPR.', show:a=>a.modal==='PR'},
-  LIMITE_CONVOCADOS:  {grupo:'prova', label:'Item 6.1 — Quem será convocado para a entrevista', type:'preset', opts:LIMITES_61, def:'a todos os candidatos que atingirem a nota mínima', show:a=>a.entrev==='S'},
-  DESEMPATE_INTRO:    {grupo:'prova', full:true, label:'Item 6.1.1 — Situação de empate (início do item)', type:'text', def:'Havendo candidatos empatados com a nota de corte do último classificado', show:a=>a.entrev==='S'},
-  DESEMPATE_TEXTO:    {grupo:'prova', label:'Item 6.1.1 — Regra aplicada ao empate', type:'preset', opts:['serão convocados para entrevista todos aqueles empatados com a mesma nota do último classificado','será utilizado critério de desempate (data de nascimento)'], def:'serão convocados para entrevista todos aqueles empatados com a mesma nota do último classificado', show:a=>a.entrev==='S'},
+  LIMITE_CONVOCADOS:  {grupo:'prova', label:'Item {{item:LIMITE_CONVOCADOS}} — Quem será convocado para a entrevista', type:'preset', opts:LIMITES_61, def:'a todos os candidatos que atingirem a nota mínima', show:a=>a.entrev==='S'},
+  DESEMPATE_INTRO:    {grupo:'prova', full:true, label:'Item {{item:DESEMPATE_INTRO}} — Situação de empate (início do item)', type:'text', def:'Havendo candidatos empatados com a nota de corte do último classificado', show:a=>a.entrev==='S'},
+  DESEMPATE_TEXTO:    {grupo:'prova', label:'Item {{item:DESEMPATE_INTRO}} — Regra aplicada ao empate', type:'preset', opts:['serão convocados para entrevista todos aqueles empatados com a mesma nota do último classificado','será utilizado critério de desempate (data de nascimento)'], def:'serão convocados para entrevista todos aqueles empatados com a mesma nota do último classificado', show:a=>a.entrev==='S'},
   LIMITE_FINAL:       {grupo:'prova', label:'Item da classificação final — limite de classificados', type:'preset', opts:LIMITES_61, def:'limitada apenas aos 10 (dez) melhores classificados'},
-  INCLUIR_COTA_NEGROS:{grupo:'prova', label:'Incluir item 6.1.3 — candidatos cotistas admitidos à entrevista com nota até 20% inferior à mínima (prática dos editais recentes)', type:'check', def:true, show:a=>a.entrev==='S'},
+  INCLUIR_COTA_NEGROS:{grupo:'prova', label:'Incluir item {{item:COTA}} — candidatos cotistas admitidos à entrevista com nota até 20% inferior à mínima (prática dos editais recentes)', type:'check', def:true, show:a=>a.entrev==='S'},
   INCLUIR_SANITARIOS: {grupo:'prova', label:'Incluir itens de protocolos sanitários (máscara, álcool gel, distanciamento) — constam dos modelos, mas foram omitidos nos editais recentes', type:'check', def:false, show:a=>a.modal==='PR'},
   INCLUIR_CODIGO_ETICA:{grupo:'anexo', full:true, label:'Incluir "Código de Ética e Conduta do Poder Judiciário" no ANEXO I', type:'check', def:false, hint:'Quando marcado, a matéria é acrescentada como último item da lista, após as demais disciplinas informadas abaixo.'},
   CONTEUDO_PROGRAMATICO:{grupo:'anexo', label:'Conteúdo programático (ANEXO I) — um item por linha', type:'textarea', def:'', hint:'Não é preciso incluir a linha "Código de Ética e Conduta do Poder Judiciário" aqui — use a opção acima.'},
@@ -527,8 +528,8 @@ function aplicarDados(d, avisos){
     else {
       values.LIMITE_CONVOCADOS=FIELDS.LIMITE_CONVOCADOS.def;
       avisos.push(d.qtd_convocados!=null
-        ? 'Quantidade de candidatos convocados para entrevista não reconhecida ("'+resumoResposta(d.qtd_convocados, d.qtd_convocados_outra)+'") — mantido "todos que atingirem a nota mínima". Ajuste o item 6.1.'
-        : 'Quantidade de candidatos convocados para entrevista não localizada no formulário — mantido "todos que atingirem a nota mínima". Confira o item 6.1.');
+        ? 'Quantidade de candidatos convocados para entrevista não reconhecida ("'+resumoResposta(d.qtd_convocados, d.qtd_convocados_outra)+'") — mantido "todos que atingirem a nota mínima". Ajuste o item '+numerosDosItens().LIMITE_CONVOCADOS+'.'
+        : 'Quantidade de candidatos convocados para entrevista não localizada no formulário — mantido "todos que atingirem a nota mínima". Confira o item '+numerosDosItens().LIMITE_CONVOCADOS+'.');
     }
   }
   if(d.prazo_inscricao){
@@ -560,7 +561,7 @@ function aplicarDados(d, avisos){
     FIELDS.DATA_PROVA_PRESENCIAL.opts = FIELDS.DATA_PROVA_PRESENCIAL.opts.concat(
       'A prova será realizada presencialmente em 00/00/0000, das 00h00min às 00h00min, no '
       + d.local_prova + (localInformado(d.endereco_prova) ? ', situado à '+d.endereco_prova : '') + '.');
-    avisos.push('Local informado pela unidade: "'+d.local_prova+'". O item 5.3 ficou com a opção do Edital de Ensalamento; se preferir citar data e local no edital, escolha o texto pronto correspondente e preencha data/horário.');
+    avisos.push('Local informado pela unidade: "'+d.local_prova+'". O item '+numerosDosItens().DATA_PROVA_PRESENCIAL+' ficou com a opção do Edital de Ensalamento; se preferir citar data e local no edital, escolha o texto pronto correspondente e preencha data/horário.');
   }
   if(d.conteudo){
     values.CONTEUDO_PROGRAMATICO = d.conteudo.split('\n').map(l=>l.trim()).filter(l=>l && l!=='-'
@@ -605,6 +606,8 @@ function renderConfirma(avisos){
   });
   hEixos+='</div></div>';
 
+  // números dos itens no modelo atual, para os rótulos "Item 6.1 —"
+  const numeros=numerosDosItens();
   // monta um grupo de campos (retorna '' se não houver campos visíveis)
   function grupoHtml(gid, gtit){
     const campos=Object.keys(FIELDS).filter(k=>FIELDS[k].grupo===gid && (!FIELDS[k].show || FIELDS[k].show(axes)));
@@ -616,7 +619,7 @@ function renderConfirma(avisos){
       // sigla SEI) — continua marcado mesmo com valor, até edição manual
       const conferir=f.req && camposParaConferir.has(k);
       const mostrarMarca=f.req && (conferir || !String(v).trim());
-      g+='<label class="ed-campo'+(f.full||f.type==='textarea'||f.type==='preset'?' ed-campo-full':'')+(f.req&&String(v).trim()&&!conferir?' ed-req-filled':'')+'"><span>'+esc(f.label)+':'+(mostrarMarca?' <span class="ed-req-mark">'+(conferir?'confira':'obrigatório')+'</span>':'')+'</span>';
+      g+='<label class="ed-campo'+(f.full||f.type==='textarea'||f.type==='preset'?' ed-campo-full':'')+(f.req&&String(v).trim()&&!conferir?' ed-req-filled':'')+'"><span>'+esc(rotuloCampo(k, numeros))+':'+(mostrarMarca?' <span class="ed-req-mark">'+(conferir?'confira':'obrigatório')+'</span>':'')+'</span>';
       if(f.type==='select'){
         g+='<select data-campo="'+k+'">'+f.opts.map(o=>'<option'+(o===v?' selected':'')+'>'+esc(o)+'</option>').join('')+'</select>';
       } else if(f.type==='datalist'){
@@ -710,7 +713,7 @@ function linkify(h){
   });
 }
 function condOk(c){ if(!c) return true; return Object.keys(c).every(ax=>c[ax].indexOf(axes[ax])!==-1); }
-function subTokens(h){
+function subTokens(h, itemCota){
   // remoção do trecho de semestres quando vazios
   if(!values.PERIODO_INICIAL && !values.PERIODO_FINAL){
     h=h.replace(/, cursando do \{\{PERIODO_INICIAL\}\} ao \{\{PERIODO_FINAL\}\} semestre no ato da admissão/g,'');
@@ -725,9 +728,11 @@ function subTokens(h){
   if(/^a partir/i.test(values.PERIODO_INSCRICOES||'')){
     h=h.replace('disponíveis das {{PERIODO_INSCRICOES}}','disponíveis {{PERIODO_INSCRICOES}}');
   }
-  // item 7.1: com a cota do item 6.1.3, os editais recentes acrescentam a ressalva
-  if(values.INCLUIR_COTA_NEGROS && axes.entrev==='S' && h.indexOf('média aritmética')!==-1 && h.indexOf('{{LIMITE_FINAL}}')!==-1){
-    h=h.replace(', {{LIMITE_FINAL}}',', ressalvado o item 6.1.3, {{LIMITE_FINAL}}');
+  // classificação final (7.1 no presencial, 8.1 no on-line): com o item da cota,
+  // os editais recentes acrescentam a ressalva. O número vem da montagem do
+  // corpo (itemCota), e não fixo: no on-line a cota é o 7.1.3, não o 6.1.3.
+  if(values.INCLUIR_COTA_NEGROS && axes.entrev==='S' && itemCota && h.indexOf('média aritmética')!==-1 && h.indexOf('{{LIMITE_FINAL}}')!==-1){
+    h=h.replace(', {{LIMITE_FINAL}}',', ressalvado o item '+itemCota+', {{LIMITE_FINAL}}');
   }
   h=h.replace(/\{\{(\w+)\}\}/g,(m,k)=>{
     if(k==='DESEMPATE_INTRO'||k==='DESEMPATE_TEXTO') return esc(values[k]||'');
@@ -796,33 +801,54 @@ function gerarEditalHTML(){
   return [b[1],b[2],b[3],b[4],b[5],b[6]].filter(Boolean).join('\n<p class="ed-c">&nbsp;</p>\n');
 }
 
-function corpoEditalHTML(){
+// Número que cada item recebe no modelo e nos valores atuais (ex.: {COTA:'7.1.3',
+// LIMITE_CONVOCADOS:'7.1'}), para os rótulos do formulário e os avisos da leitura.
+// Sai da mesma montagem do corpo, então nunca diverge do edital gerado.
+function numerosDosItens(){ const r={}; corpoEditalHTML(r); return r; }
+function rotuloCampo(k, numeros){
+  return FIELDS[k].label.replace(/\{\{item:(\w+)\}\}/g,(m,t)=>numeros[t]||'?');
+}
+
+// registro (opcional): recebe, sem o ponto final, o número de cada item —
+// indexado pelos {{CAMPOS}} do parágrafo e por COTA (item da cota de nota).
+// Item que não entra (cota desmarcada, empate em branco) fica com o número que
+// receberia, para o rótulo do campo que o liga.
+function corpoEditalHTML(registro){
+  const reg=registro||{};
   const partes=[];
   // corpo numerado
   let n1=0,n2=0,n3=0,letra=0;
   const SANITARIOS=['Ao adentrar nas dependências','o uso adequado de máscara','a higienização das mãos','evitar aglomerações'];
   function emitir(l, html){
     let num='';
-    if(l===0){ n1++; n2=0; n3=0; letra=0; num=n1+'.'; partes.push('<p class="ed-j ed-b">'+num+' '+html.replace(/<\/?b>/g,'')+'</p>'); return; }
+    if(l===0){ n1++; n2=0; n3=0; letra=0; num=n1+'.'; partes.push('<p class="ed-j ed-b">'+num+' '+html.replace(/<\/?b>/g,'')+'</p>'); return n1+''; }
     if(l===1){ n2++; n3=0; letra=0; num=n1+'.'+n2+'.'; }
     else if(l===2){ n3++; letra=0; num=n1+'.'+n2+'.'+n3+'.'; }
     else if(l===3){ letra++; num=String.fromCharCode(96+letra)+')'; }
     partes.push('<p class="ed-j"><b>'+num+'</b> '+html+'</p>');
+    return num.replace(/\.$/,'');
+  }
+  // número que o próximo item do nível l receberia (1 = item, 2 = subitem)
+  function proximo(l){ return l===1 ? n1+'.'+(n2+1) : n1+'.'+n2+'.'+(n3+1); }
+  function registrar(h, num){
+    (h.match(/\{\{\w+\}\}/g)||[]).forEach(t=>{ const k=t.slice(2,-2); if(!reg[k]) reg[k]=num; });
   }
   EDITAL_PARAS.forEach(p=>{
     if(!condOk(p.c)) return;
     if(!values.INCLUIR_SANITARIOS && SANITARIOS.some(s=>p.h.indexOf(s)===0)) return;
-    if(p.h.indexOf('{{DESEMPATE_INTRO}}')!==-1 && !(values.DESEMPATE_INTRO||'').trim() && !(values.DESEMPATE_TEXTO||'').trim()) return;
-    const html=subTokens(p.h);
+    if(p.h.indexOf('{{DESEMPATE_INTRO}}')!==-1 && !(values.DESEMPATE_INTRO||'').trim() && !(values.DESEMPATE_TEXTO||'').trim()){ registrar(p.h, proximo(p.l)); return; }
+    const html=subTokens(p.h, reg.COTA);
     if(p.l==='free'){ partes.push('<p class="ed-j">'+html+'</p>'); return; }
-    emitir(p.l, html);
+    registrar(p.h, emitir(p.l, html));
     // subitem 4.3.1 (prazo das inscrições)
     if(p.h.indexOf('{{PERIODO_INSCRICOES}}')!==-1 && (values.INSCRICOES_SUBITEM||'').trim()){
       emitir(2, esc(values.INSCRICOES_SUBITEM.trim()));
     }
-    // item 6.1.3 (cota de nota para candidatos negros)
-    if(values.INCLUIR_COTA_NEGROS && axes.entrev==='S' && p.h.indexOf('O candidato que não comparecer à convocação para entrevista')===0){
-      emitir(2, 'Quanto aos candidatos cotistas, bastará o alcance de nota 20% inferior à nota mínima estabelecida para os demais candidatos, para serem admitidos na próxima fase do certame.');
+    // item da cota de nota para candidatos negros (6.1.3 no presencial, 7.1.3 no on-line)
+    if(axes.entrev==='S' && p.h.indexOf('O candidato que não comparecer à convocação para entrevista')===0){
+      reg.COTA = values.INCLUIR_COTA_NEGROS
+        ? emitir(2, 'Quanto aos candidatos cotistas, bastará o alcance de nota 20% inferior à nota mínima estabelecida para os demais candidatos, para serem admitidos na próxima fase do certame.')
+        : proximo(2);
     }
   });
   // ANEXO I: conteúdo programático — texto puro (sem numeração automática).
