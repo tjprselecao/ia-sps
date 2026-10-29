@@ -49,15 +49,6 @@
   @media (max-width:900px){ .rf-doc-botoes{ margin-left:0; } }
   .rf-doc-botoes .rf-btn-doc{ min-width:190px; text-align:center; justify-content:center; }
 
-  /* área administrativa: separada do fluxo do usuário final, discreta */
-  .rf-admin{ margin:46px 0 0; padding:18px 20px; border:1px dashed var(--line); border-radius:8px; background:#fafcfc; }
-  .rf-admin-cab{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-  .rf-admin-tit{ font-family:'Barlow Semi Condensed',system-ui,sans-serif; font-weight:700; font-size:14px; color:var(--ink-soft); margin:0; }
-  .rf-admin-nota{ font-family:'Barlow',system-ui,sans-serif; font-size:11.5px; color:var(--ink-soft); margin:6px 0 0; }
-  .rf-pin-linha{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:14px; }
-  .rf-pin-linha input{ width:120px; padding:9px 12px; border:1px solid var(--line); border-radius:7px;
-    font-family:'IBM Plex Mono',Consolas,monospace; font-size:14px; letter-spacing:.28em; text-align:center; }
-
   /* tabela de candidatos: white-space:normal anula o nowrap global de tabelas
      do core.css; sem table-layout fixo porque as colunas são inputs de largura
      controlada e o nome precisa poder crescer */
@@ -76,18 +67,11 @@
   .rf-tabela input.rf-in-travado:focus{ outline:1px solid var(--line); }
   .rf-reserva-travada{ font-family:'Barlow',system-ui,sans-serif; font-size:12.5px; color:var(--ink); padding:0 4px; }
   .rf-barra-tabela button:disabled{ opacity:.45; cursor:not-allowed; }
-  .rf-btn-excluir{ color:var(--coral); border-color:var(--coral); }
-  .rf-btn-excluir:hover{ background:var(--coral); color:var(--white); }
   .rf-barra-tabela{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:12px 0 12px 36px; }
   @media (max-width:900px){ .rf-barra-tabela{ margin-left:0; } }
 
-  .rf-nuvem-status{ font-family:'Barlow',system-ui,sans-serif; font-size:12.5px; color:var(--ink-soft); margin:8px 0 0 36px; }
-  .rf-nuvem-lista{ margin:12px 0 0 36px; display:flex; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto; }
-  @media (max-width:900px){ .rf-nuvem-lista, .rf-nuvem-status{ margin-left:0; } }
-  .rf-nuvem-item{ display:flex; gap:12px; align-items:center; padding:8px 12px; border:1px solid var(--line); border-radius:7px; background:var(--white); font-family:'Barlow',system-ui,sans-serif; font-size:12.5px; }
-  .rf-nuvem-item .rf-nuvem-info{ flex:1; min-width:0; }
-  .rf-nuvem-item .rf-nuvem-unidade{ font-weight:600; color:var(--ink); overflow-wrap:break-word; }
-  .rf-nuvem-item .rf-nuvem-meta{ color:var(--ink-soft); font-size:11.5px; }
+  .rf-status{ font-family:'Barlow',system-ui,sans-serif; font-size:12.5px; color:var(--ink-soft); margin:8px 0 0 36px; }
+  @media (max-width:900px){ .rf-status{ margin-left:0; } }
 
   #rfDocumento{ border:1px solid var(--line); background:var(--white); padding:28px 34px; margin:14px 0 0 36px; overflow-x:auto; }
   @media (max-width:900px){ #rfDocumento{ margin-left:0; } }
@@ -115,10 +99,10 @@
       <ul class="step-list">
         <li><strong>Passo 1</strong> — informe a unidade (digitar a sigla ou parte do nome sugere as unidades do TJPR) e o número do processo SEI.</li>
         <li><strong>Passo 2</strong> — cadastre os candidatos linha por linha. A <strong>classificação</strong> segue a posição na tabela (arraste pela alça ⠿ para mudar) e a <strong>nota final</strong> é calculada pela média de prova e entrevista — editável, com aviso quando divergir. Botões reordenam por nota ou por ordem alfabética.</li>
-        <li><strong>Passo 3</strong> — salve o preenchimento na nuvem, identificado pelo número SEI. Salvar de novo com o mesmo SEI substitui o anterior, então dá para corrigir depois.</li>
+        <li><strong>Passo 3</strong> — finalize o preenchimento: a tabela é conferida e bloqueada para edição, e os documentos são liberados. Para corrigir depois, use <strong>Editar preenchimento</strong>.</li>
         <li><strong>Passo 4</strong> — baixe o <strong>PDF</strong> (cabeçalho institucional, pronto para juntar ao processo) e o <strong>CSV</strong>, aceito diretamente pela ferramenta do Ponto 20.</li>
       </ul>
-      <p class="step-desc">Todo o preenchimento acontece no seu navegador. O que está na tela é guardado automaticamente neste computador — ao reabrir a página você escolhe entre continuar de onde parou ou começar outro processo seletivo do zero. Uma cópia em arquivo pode ser baixada e reaberta pela caixa <strong>Rascunho</strong>, no canto inferior direito.</p>
+      <p class="step-desc">Todo o preenchimento acontece no seu navegador: <strong>nenhum dado de candidato é enviado pela internet</strong>. O que está na tela é guardado automaticamente neste computador — ao reabrir a página você escolhe entre continuar de onde parou ou começar outro processo seletivo do zero. Uma cópia em arquivo pode ser baixada e reaberta pela caixa <strong>Rascunho</strong>, no canto inferior direito.</p>
     </div>
 
     <!-- ===================== tela inicial =====================
@@ -221,7 +205,7 @@
         <span class="step-num">3</span>
         <p class="step-title">Finalizar preenchimento</p>
       </div>
-      <p class="step-desc">Conclui o trabalho: grava esta tabela na base da Divisão de Gestão (identificada pelo <strong>número SEI</strong>), <strong>bloqueia a edição</strong> e libera os documentos. Finalizar de novo com o mesmo SEI substitui o que estava gravado — é assim que se corrige um envio.</p>
+      <p class="step-desc">Conclui o trabalho: confere os dados obrigatórios, <strong>bloqueia a edição</strong> e libera os documentos. Nada é gravado fora deste computador — para corrigir, use <strong>Editar preenchimento</strong> e finalize de novo; para guardar uma cópia, use a caixa <strong>Rascunho</strong>.</p>
       <div class="notice-banner" id="rfTravadoAviso" style="display:none;margin:0 0 14px 36px;">
         <strong>Preenchimento finalizado.</strong> A tabela está bloqueada para edição — os documentos abaixo correspondem exatamente ao que está na tela. Para mudar alguma coisa, use <strong>Editar preenchimento</strong>.
       </div>
@@ -229,13 +213,12 @@
         <button type="button" class="download-btn rf-btn-doc" id="rfBtnFinalizar">Finalizar preenchimento</button>
         <button type="button" class="download-btn rf-btn-doc" id="rfBtnEditar" style="display:none;">Editar preenchimento</button>
       </div>
-      <p class="rf-nuvem-status" id="rfNuvemSalvoEm"></p>
-      <p class="rf-nuvem-status" id="rfNuvemStatus"></p>
+      <p class="rf-status" id="rfStatusFinalizar"></p>
     </div>
 
     <!-- ============================ 4 ============================
-         Os botões e a prévia só aparecem depois de finalizar (rfFinalizado),
-         para o documento não sair antes de a tabela estar gravada. -->
+         Os botões e a prévia só aparecem depois de finalizar, para o
+         documento não sair antes de a tabela estar conferida e bloqueada. -->
     <div class="step">
       <div class="step-head">
         <span class="step-num">4</span>
@@ -247,52 +230,9 @@
           <button type="button" class="download-btn rf-btn-doc" id="rfBtnPdf">Baixar PDF</button>
           <button type="button" class="download-btn rf-btn-doc" id="rfBtnCsv">Baixar CSV</button>
         </div>
-        <p class="rf-nuvem-status" id="rfMsgDocs"></p>
+        <p class="rf-status" id="rfMsgDocs"></p>
         <p class="step-desc" style="margin-top:14px;">Prévia do documento:</p>
         <div id="rfDocumento" style="display:none;"></div>
-      </div>
-    </div>
-
-    <!-- ===================== área administrativa =====================
-         Fora da numeração dos passos e no fim da página, de propósito: são
-         ações que mexem na base compartilhada e não fazem parte do trabalho
-         de quem só precisa gerar o documento da sua unidade. -->
-    <div class="rf-admin" id="rfAdmin">
-      <div class="rf-admin-cab">
-        <p class="rf-admin-tit">Área administrativa</p>
-        <button type="button" class="link-btn" id="rfAdminToggle" aria-expanded="false" aria-controls="rfAdminCorpo">Abrir</button>
-      </div>
-      <p class="rf-admin-nota">Recuperação de registros já gravados e backup da base. Restrita à equipe gestora — salvar o próprio preenchimento é o Passo 3, acima.</p>
-
-      <div id="rfAdminCorpo" style="display:none;">
-        <div id="rfAdminTrava">
-          <div class="rf-pin-linha">
-            <label class="rf-campo" style="flex-direction:row;align-items:center;gap:10px;">PIN de acesso
-              <input type="password" id="rfPin" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off">
-            </label>
-            <button type="button" class="link-btn" id="rfBtnPin">Entrar</button>
-            <span class="count-note" id="rfPinMsg"></span>
-          </div>
-        </div>
-
-        <div id="rfAdminConteudo" style="display:none;">
-          <p class="step-desc" style="margin-left:0;">Abrir um registro <strong>substitui</strong> o que estiver na tela — salve ou baixe antes, se ainda precisar.</p>
-          <div class="rf-barra-tabela" style="margin-left:0;">
-            <input type="text" id="rfNuvemBusca" placeholder="Buscar registro salvo por SEI ou unidade..." autocomplete="off"
-                   style="flex:1 1 280px;min-width:200px;padding:9px 12px;border:1px solid var(--line);border-radius:7px;font-family:'Barlow',system-ui,sans-serif;font-size:13px;">
-            <button type="button" class="link-btn" id="rfBtnNuvemBuscar">Buscar salvos</button>
-          </div>
-          <div class="rf-nuvem-lista" style="margin-left:0;" id="rfNuvemLista"></div>
-          <p class="rf-nuvem-status" style="margin-left:0;" id="rfNuvemStatusAdmin"></p>
-
-          <div class="rf-barra-tabela" style="margin-left:0;margin-top:18px;">
-            <button type="button" class="link-btn" id="rfBtnBackupBaixar">Baixar backup completo (.json)</button>
-            <button type="button" class="link-btn" id="rfBtnBackupRestaurar">Restaurar backup</button>
-            <input type="file" id="rfBackupArquivo" accept="application/json" style="display:none;">
-            <span class="count-note">O backup traz todos os registros da base — guarde uma cópia periodicamente.</span>
-          </div>
-          <div id="rfAvisoBackup"></div>
-        </div>
       </div>
     </div>
 

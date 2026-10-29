@@ -22,18 +22,10 @@
   // nenhum aprovado é cotista e todos os nomes foram cruzados (ver processFiles)
   let activeCols = OUT_COLS;
 
-  // Cada código de reserva aceita vários rótulos possíveis, porque a Fábrica de
-  // Provas nem sempre grava o texto exatamente igual.
-  const RESERVA_MAP = [
-    { code: '2.1.1', termos: ['PRETO OU PARDO','PRETA OU PARDA','PRETO','PARDO','PRETA','PARDA','NEGRO','NEGRA'] },
-    { code: '2.1.2', termos: ['PESSOA COM DEFICIENCIA','PESSOA COM DEFICIENCIA (PCD)','PCD','DEFICIENTE','DEFICIENCIA'] },
-    { code: '2.1.3', termos: ['INDIGENA'] },
-    { code: '2.1.4', termos: ['VULNERABILIDADE SOCIAL','HIPOSSUFICIENTE','HIPOSSUFICIENCIA'] }
-  ];
-
-  // Valores que significam "não é cotista" — ausência de reserva, não erro.
-  const SEM_RESERVA = ['-','--','N/A','NA','NAO','NAO SE APLICA','NENHUMA','NENHUM',
-                       'AMPLA CONCORRENCIA','AMPLA CONCORRENCIA (AC)','AC'];
+  // Os termos de reserva aceitos (cada código tem várias grafias, porque a
+  // Fábrica de Provas nem sempre grava o texto igual) e os valores que
+  // significam "não é cotista" ficam no core: TJPRCore.reconhecerReserva,
+  // o mesmo reconhecimento de todo o portal desde a v3.24.
 
   let outputRows = [];
 
@@ -104,35 +96,15 @@
   }
   // A célula "Reserva especial" pode trazer MAIS DE UM rótulo separado por
   // vírgula (e às vezes o mesmo rótulo repetido, ex.: "Preto ou pardo, Preto ou
-  // pardo"). Por isso a célula é quebrada em partes, cada parte é normalizada e
-  // mapeada individualmente, com remoção de duplicatas. Valores que não batem
-  // com nenhum termo conhecido são devolvidos em `desconhecidos` para virarem
+  // pardo"). O reconhecimento é o do core (TJPRCore.reconhecerReserva): os
+  // códigos saem sem duplicatas e em ordem, e os trechos que não batem com
+  // nenhum termo conhecido são devolvidos em `desconhecidos` para virarem
   // aviso na tela — nunca são descartados em silêncio.
   // Também aceita os próprios códigos (2.1.1 a 2.1.4), inclusive separados só
   // por espaço — é o que se digita na coluna RESERVA da classificação manual.
   function mapReserva(v){
-    const partes = [];
-    String(v === undefined || v === null ? '' : v)
-      .split(/[,;\/|]+/)
-      .map(normHeader)
-      .filter(p => p !== '')
-      .forEach(p => {
-        if(/^\d\.\d\.\d(?:\s+\d\.\d\.\d)+$/.test(p)) p.split(/\s+/).forEach(c => partes.push(c));
-        else partes.push(p);
-      });
-    const codes = [];
-    const desconhecidos = [];
-    partes.forEach(p => {
-      if(SEM_RESERVA.indexOf(p) !== -1) return;
-      const hit = RESERVA_MAP.find(r => r.code === p || r.termos.indexOf(p) !== -1);
-      if(hit){
-        if(codes.indexOf(hit.code) === -1) codes.push(hit.code);
-      } else if(desconhecidos.indexOf(p) === -1){
-        desconhecidos.push(p);
-      }
-    });
-    codes.sort();
-    return { code: codes.join(', '), desconhecidos: desconhecidos };
+    const r = TJPRCore.reconhecerReserva(v);
+    return { code: r.codigos.join(', '), desconhecidos: r.desconhecidos };
   }
   function formatNota(v){
     if(v === null || v === undefined || String(v).trim()==='') return { ok:true, value:'' };

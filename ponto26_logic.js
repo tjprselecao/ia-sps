@@ -248,7 +248,7 @@
   }
 
   // O Hércules exige o CPF com 11 dígitos. Quando o relatório é aberto/salvo no
-  // Excel, o CPF vira número e perde o zero à esquerda (09298466994 -> 9298466994),
+  // Excel, o CPF vira número e perde o zero à esquerda (0XXXXXXXXXX -> XXXXXXXXXX),
   // o que quebra a importação. Reconstituímos o zero aqui.
   function normalizarCPF(valor){
     const digitos = String(valor === undefined || valor === null ? '' : valor).replace(/\D/g,'');
@@ -263,32 +263,27 @@
 
   // Conversão da reserva textual do cadastro para as flags S/N do Hércules.
   // O relatório traz a cota por extenso ("Preto ou pardo", "Pessoa com
-  // Deficiência"); casamos por radical para tolerar variações de redação do
-  // sistema de inscrição. Valor não reconhecido NUNCA vira "N" em silêncio —
-  // é devolvido em `desconhecido` e reportado ao usuário.
-  const MAPA_RESERVA = [
-    { cota: 'AFRO',     re: /(PRETO|PARDO|NEGR|AFRO|ETNICO|ETNICO RACIAL)/ },
-    { cota: 'PNE',      re: /(DEFICI|PCD|PNE|PORTADOR DE NECESSIDADE)/ },
-    { cota: 'INDÍGENA', re: /(INDIGEN)/ },
-    { cota: 'VS',       re: /(VULNERAB|HIPOSSUF|BAIXA RENDA|CADUNICO|CAD UNICO|SOCIOECONOMIC|ESCOLA PUBLICA)/ }
-  ];
-
+  // Deficiência"). O reconhecimento é o do core (TJPRCore.reconhecerReserva),
+  // único para todo o portal desde a v3.24 — casa por radical, para tolerar
+  // variações de redação do sistema de inscrição, e entende "Ampla
+  // concorrência", "Não", "-" etc. como ausência de cota. Valor não
+  // reconhecido NUNCA vira "N" em silêncio — é devolvido em `desconhecido` e
+  // reportado ao usuário.
   function reservaTextoParaCotas(texto){
     const flags = { PNE:'N', VS:'N', AFRO:'N', 'INDÍGENA':'N' };
     const bruto = limpar(texto);
     if(bruto === '' || bruto === '-') return { flags, desconhecido: null };
 
-    // normName remove acentos e põe em maiúsculas
-    const chave = normName(bruto);
-    let achou = false;
-    MAPA_RESERVA.forEach(m => {
-      if(m.re.test(chave)){ flags[m.cota] = 'S'; achou = true; }
-    });
-    return { flags, desconhecido: achou ? null : bruto };
+    const r = TJPRCore.reconhecerReserva(bruto);
+    r.codigos.forEach(cod => { flags[TJPRCore.colunaHercules(cod)] = 'S'; });
+    const reconhecida = r.codigos.length > 0 || r.semReserva;
+    return { flags, desconhecido: reconhecida ? null : bruto };
   }
 
-  // Códigos de reserva usados na coluna RESERVA do edital.
-  const MAPA_CODIGO = { '2.1.1':'AFRO', '2.1.2':'PNE', '2.1.3':'INDÍGENA', '2.1.4':'VS' };
+  // Códigos de reserva usados na coluna RESERVA do edital -> coluna do Hércules
+  // (a correspondência vem do core: TJPRCore.RESERVAS).
+  const MAPA_CODIGO = {};
+  TJPRCore.RESERVAS.forEach(r => { MAPA_CODIGO[r.codigo] = r.hercules; });
 
   function codigoEditalParaCotas(reserva){
     const flags = { PNE:'N', VS:'N', AFRO:'N', 'INDÍGENA':'N' };
@@ -403,7 +398,7 @@
   async function processFiles(){
     const t1 = parseTabela1(tabela1Input.value);
     if(t1.rows.length === 0){
-      alert('Não foi possível interpretar nenhuma linha da Tabela 1. Verifique se cada linha começa com ORDEM e INSCRIÇÃO numéricos, seguidos do nome e de uma nota (ex: 1  5116156  KADU LAIBIDA CORREA  8.00).');
+      alert('Não foi possível interpretar nenhuma linha da Tabela 1. Verifique se cada linha começa com ORDEM e INSCRIÇÃO numéricos, seguidos do nome e de uma nota (ex: 1  1111111  MARIA DA SILVA  8.00).');
       return;
     }
 

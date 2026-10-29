@@ -18,7 +18,7 @@
 
 // Versão exibida no canto do cabeçalho (formato "v. x.y.z"). Atualizar aqui a
 // cada commit versionado, acompanhando o número usado na mensagem do commit.
-const VERSAO_APP='3.23';
+const VERSAO_APP='3.25.2';
 
 const SECOES=[
   {
@@ -112,7 +112,7 @@ const FERRAMENTAS=[
     cor:"--teal",
     eyebrow:"Ponto 18",
     titulo:"Convocação para Entrevista",
-    descricao:"Lê o Relatório de convocação para entrevistas da Fábrica de Provas, monta a tabela dos convocados (com reserva, datas, horários e links), gera a convocação pronta para salvar em PDF, os blocos para publicar no Athos e a lista de e-mails para envio pelo SEI."
+    descricao:"Lê o Relatório de convocação para entrevistas da Fábrica de Provas, monta a tabela dos convocados (com reserva, datas, horários, links e, se preciso, um local por tabela), gera a convocação pronta para salvar em PDF, os blocos para publicar no Athos e a lista de e-mails para envio pelo SEI."
   },
   {
     arquivo:"ponto_20.html",
@@ -206,7 +206,7 @@ const FERRAMENTAS=[
     cor:"--mint",
     eyebrow:"Resultado final do processo seletivo",
     titulo:"Criação da tabela de resultado final - Unidades externas",
-    descricao:"Cadastro das notas dos candidatos no modelo da classificação final da Fábrica de Provas, com tabela editável por arrastar e soltar, classificação e nota final automáticas, gravação compartilhada por SEI + unidade, e exportação em PDF com cabeçalho institucional e CSV compatível com o Ponto 20."
+    descricao:"Cadastro das notas dos candidatos no modelo da classificação final da Fábrica de Provas, com tabela editável por arrastar e soltar, classificação e nota final automáticas, rascunho guardado só neste computador (nada é enviado pela internet) e exportação em PDF com cabeçalho institucional e CSV compatível com o Ponto 20."
   }
 ];
 

@@ -20,7 +20,8 @@
 var TEM_DOM = (typeof document !== 'undefined');
 var C = (typeof window !== 'undefined' && window.TJPRCore) ? window.TJPRCore : {
   // reimplementação mínima, usada apenas pelos testes em Node
-  escapeHtml: function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); },
+  escapeHtml: function(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;'); },
   normName: function(s){
     if(!s) return '';
     return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()
@@ -605,8 +606,8 @@ function acharColuna(cab, nomes){
   return -1;
 }
 
-/* O número de inscrição chega da planilha como número (5240056) e o SheetJS o
-   entrega como "5240056.0" em alguns arquivos — normalizamos para inteiro. */
+/* O número de inscrição chega da planilha como número (1234567) e o SheetJS o
+   entrega como "1234567.0" em alguns arquivos — normalizamos para inteiro. */
 function limpaInscricao(v){
   var s = String(v==null?'':v).trim();
   if(!s) return '';

@@ -7,12 +7,19 @@
 
   Para usar em uma nova ferramenta:
     const { escapeHtml, csvEscape, normName, detectDelimiter, parseCSV,
-            copyTableToClipboard } = TJPRCore;
+            copyTableToClipboard, reconhecerReserva } = TJPRCore;
 */
 window.TJPRCore = (function(){
 
+  // Serve tanto para texto quanto para VALOR DE ATRIBUTO: as aspas também são
+  // neutralizadas. Até a v3.23 só & < > eram tratados, e um valor com aspas
+  // (um nome digitado com "apelido", por exemplo) quebrava atributos como
+  // value="…" na tabela editável do Ponto 14. Os escAttr locais das
+  // ferramentas continuam funcionando: depois deste escape não sobra aspa
+  // crua para eles trocarem.
   function escapeHtml(s){
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
 
   function csvEscape(val){
@@ -66,6 +73,94 @@ window.TJPRCore = (function(){
     }
     if(field.length > 0 || row.length > 0){ row.push(field); rows.push(row); }
     return rows.filter(r => !(r.length===1 && r[0].trim()===''));
+  }
+
+  /* ------------------------------------------------------------------------
+     Reservas de vagas (cotas) — reconhecimento ÚNICO para todo o portal.
+
+     Até a v3.23 cada ferramenta tinha o seu mapa (Pontos 18, 20 e 26,
+     Convocação, Classificação e Hércules da Residência), e um mesmo texto da
+     Fábrica podia ser reconhecido numa e não noutra. Aqui está a UNIÃO de
+     tudo o que elas aceitavam: nenhum texto que alguma ferramenta já
+     reconhecia deixou de ser reconhecido, nem passou a cair em outra cota.
+     Cada ferramenta continua decidindo o que fazer com o resultado — o Ponto
+     20 escreve o código, o Ponto 26 marca as colunas S/N do Hércules, a
+     Residência ignora a VS com aviso.
+     ------------------------------------------------------------------------ */
+
+  // Os quatro grupos de reserva do edital (subitens do item 2) e como cada um
+  // aparece nas saídas das ferramentas.
+  const RESERVAS = [
+    { codigo:'2.1.1', rotulo:'Pessoas pretas ou pardas', hercules:'AFRO',     residencia:'ppp' },
+    { codigo:'2.1.2', rotulo:'Pessoas com deficiência',  hercules:'PNE',      residencia:'pcd' },
+    { codigo:'2.1.3', rotulo:'Indígenas',                hercules:'INDÍGENA', residencia:'ind' },
+    // a VS só vale para editais de Ensino Médio; a Residência não tem esse grupo
+    { codigo:'2.1.4', rotulo:'Vulnerabilidade social',   hercules:'VS',       residencia:null  }
+  ];
+
+  // Radicais procurados no texto já sem acento e em maiúsculas. Casam por
+  // TRECHO (PRET[OA] cobre "Preto", "Preta", "Pessoa Preta ou Parda"), e o
+  // próprio código também vale ("2.1.1"). Ao acrescentar um termo, confira que
+  // ele não aparece dentro de termos de outra cota.
+  const TERMOS_RESERVA = {
+    '2.1.1': /PRET[OA]|PARD[OA]|NEGR|AFRO|ETNICO|PPP|PNP|2\.1\.1/,
+    '2.1.2': /DEFICI|PCD|PNE|PORTADOR DE NECESSIDADE|2\.1\.2/,
+    '2.1.3': /INDIGEN|2\.1\.3/,
+    '2.1.4': /VULNERAB|HIPOSSUF|BAIXA RENDA|CADUNICO|CAD UNICO|SOCIOECONOMIC|ESCOLA PUBLICA|2\.1\.4/
+  };
+
+  // Textos que significam "não é cotista" — ausência de reserva, não erro.
+  const SEM_RESERVA = ['', '-', '--', '—', 'N/A', 'NA', 'NAO', 'NAO SE APLICA', 'NAO POSSUI',
+    'NENHUMA', 'NENHUM', 'AC', 'AMPLA', 'AMPLA CONCORRENCIA', 'AMPLA CONCORRENCIA (AC)',
+    'AMPLA CONCORRENCIA - AC', 'GERAL', 'CONCORRENCIA GERAL', 'SEM RESERVA', 'SEM COTA',
+    'NAO COTISTA', 'NAO E COTISTA', 'NAO OPTANTE'];
+
+  function normReserva(s){
+    return String(s === undefined || s === null ? '' : s)
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .toUpperCase().replace(/\s+/g,' ').trim();
+  }
+  // Mesmo texto só com letras ("CAD-ÚNICO" -> "CADUNICO"), como o normName:
+  // é assim que o Ponto 26 comparava, e os dois jeitos continuam valendo.
+  function soLetras(s){ return s.replace(/[^A-Z\s]/g,'').replace(/\s+/g,' ').trim(); }
+
+  function codigosNoTexto(norm){
+    const letras = soLetras(norm);
+    return RESERVAS
+      .filter(r => TERMOS_RESERVA[r.codigo].test(norm) || TERMOS_RESERVA[r.codigo].test(letras))
+      .map(r => r.codigo);
+  }
+
+  // Texto livre de reserva -> { codigos, desconhecidos, semReserva }
+  //   codigos       códigos reconhecidos ('2.1.1'…), sem repetição, em ordem
+  //   desconhecidos trechos (separados por , ; / |) que não são cota nem
+  //                 "sem reserva", já normalizados — para virar aviso
+  //   semReserva    true quando o texto só diz "não é cotista" (vazio, "-", AC…)
+  // Os códigos são procurados no texto INTEIRO, os desconhecidos trecho a
+  // trecho: "Preto ou pardo e PcD" vale pelas duas cotas, e um trecho estranho
+  // ao lado de uma cota reconhecida ainda aparece como aviso.
+  function reconhecerReserva(texto){
+    const norm = normReserva(texto);
+    if(SEM_RESERVA.indexOf(norm) !== -1) return { codigos:[], desconhecidos:[], semReserva:true };
+    const codigos = codigosNoTexto(norm);
+    const desconhecidos = [];
+    norm.split(/[,;\/|]+/).map(p => p.trim()).filter(p => p !== '').forEach(p => {
+      if(SEM_RESERVA.indexOf(p) !== -1) return;
+      if(codigosNoTexto(p).length) return;
+      if(desconhecidos.indexOf(p) === -1) desconhecidos.push(p);
+    });
+    return { codigos, desconhecidos, semReserva: codigos.length === 0 && desconhecidos.length === 0 };
+  }
+
+  // Código '2.1.x' -> coluna S/N do CSV do Hércules ('AFRO', 'PNE'…)
+  function colunaHercules(codigo){
+    const r = RESERVAS.find(x => x.codigo === codigo);
+    return r ? r.hercules : null;
+  }
+  // Código '2.1.x' -> grupo de cota da Residência ('ppp', 'pcd', 'ind'; null na VS)
+  function grupoResidencia(codigo){
+    const r = RESERVAS.find(x => x.codigo === codigo);
+    return r ? r.residencia : null;
   }
 
   // Monta um HTML de tabela "limpo" (sem font-family, sem font-size, sem cor)
@@ -301,6 +396,7 @@ window.TJPRCore = (function(){
   return {
     escapeHtml, csvEscape, normName, detectDelimiter, parseCSV,
     buildCleanTableHTML, buildTSV, copyTableToClipboard, pdfToText,
-    seletorHora, fecharSeletorHora
+    seletorHora, fecharSeletorHora,
+    RESERVAS, reconhecerReserva, colunaHercules, grupoResidencia
   };
 })();

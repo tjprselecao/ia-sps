@@ -585,27 +585,22 @@ const COLS_CONF = ['Classificação','Vaga (tipo)','Ordem no edital','CPF','Nome
                    'Nota final','E-mail','Telefone celular','Telefone fixo','PNE','VS','AFRO','INDÍGENA'];
 
 // Modalidade da inscrição (Lista de dados) -> colunas S/N do Hércules.
+// O reconhecimento do texto é o do core (TJPRCore.reconhecerReserva), único
+// para todo o portal desde a v3.24 — inclui PRET[OA]/PARD[OA], que cobre as
+// duas concordâncias de gênero (a modalidade normalmente vem como "Pessoa
+// Preta ou Parda", que "PRETO|PARDO" sozinho não reconhecia). A VS marcada
+// aqui é forçada para "N" adiante, com aviso (não se aplica à Residência).
 // Valor não reconhecido NUNCA vira "N" em silêncio: é reportado ao usuário.
-const MAPA_MODALIDADE = [
-  // PRET[OA]/PARD[OA] cobre as duas concordâncias de gênero — a modalidade
-  // normalmente vem como "Pessoa Preta ou Parda" (feminino), que
-  // "PRETO|PARDO" sozinho não reconhecia (bug: toda inscrição nessa cota
-  // caía em "modalidade não reconhecida" em vez de marcar AFRO).
-  { col:'AFRO',     re:/(PRET[OA]|PARD[OA]|NEGR|AFRO|ETNICO)/ },
-  { col:'PNE',      re:/(DEFICI|PCD|PNE|PORTADOR DE NECESSIDADE)/ },
-  { col:'INDÍGENA', re:/(INDIGEN)/ },
-  { col:'VS',       re:/(VULNERAB|HIPOSSUF|BAIXA RENDA|CADUNICO|CAD UNICO|SOCIOECONOMIC|ESCOLA PUBLICA)/ }
-];
-
 function modalidadeParaCotas(texto){
   const flags = { PNE:'N', VS:'N', AFRO:'N', 'INDÍGENA':'N' };
   const bruto = limpar(texto);
   if(bruto==='' || bruto==='-') return { flags, desconhecida:null };
   const chave = semAcento(bruto).toUpperCase();
   if(/AMPLA|GERAL/.test(chave)) return { flags, desconhecida:null };
-  let achou = false;
-  MAPA_MODALIDADE.forEach(m=>{ if(m.re.test(chave)){ flags[m.col]='S'; achou=true; } });
-  return { flags, desconhecida: achou ? null : bruto };
+  const r = TJPRCore.reconhecerReserva(bruto);
+  r.codigos.forEach(cod=>{ flags[TJPRCore.colunaHercules(cod)]='S'; });
+  const reconhecida = r.codigos.length>0 || r.semReserva;
+  return { flags, desconhecida: reconhecida ? null : bruto };
 }
 
 // Correspondência aproximada: mesmo primeiro e último nome e um dos nomes é
