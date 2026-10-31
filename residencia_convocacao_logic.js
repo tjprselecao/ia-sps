@@ -347,11 +347,27 @@ function reservaTexto(item){
      Candidato   nome, a chave do cruzamento
      Nota        aproveitada como nota da prova, editável depois no Passo 3
      Aprovado    "(Aprovado)" -> vem marcado; "(Reprovado)" -> vem desmarcado
+     Mínima      nota mínima da prova (6); base da regra da cota, abaixo
    Monitoramento, Reconhecimento facial e Discursivas não decidem nada: só
-   geram aviso quando indicam pendência, para a unidade conferir. */
+   geram aviso quando indicam pendência, para a unidade conferir.
+
+   Regra da cota (item 6.1.3 ou 7.1.3 do Edital de Abertura): o cotista é
+   admitido à entrevista com nota até 20% inferior à mínima — 4,80 quando a
+   mínima é 6. A Fábrica não conhece essa regra e marca esse cotista como
+   "(Reprovado)"; o cruzamento corrige a marcação, com aviso, quando a caixa
+   da regra está ligada no Passo 1. */
 
 const RE_APROVADO_FABRICA  = /\(?\s*APROVAD/;
 const RE_REPROVADO_FABRICA = /\(?\s*REPROVAD/;
+const NOTA_MINIMA_PADRAO = 6;     // quando o relatório não traz a coluna Mínima
+const FATOR_NOTA_COTA    = 0.8;   // cotista: até 20% abaixo da mínima
+
+// Nota mínima do cotista, em centésimos inteiros: 6 -> 480. Em centésimos
+// porque 6*0.8 dá 4.800000000000001 em ponto flutuante, e a nota 4,80 ficaria
+// de fora por um erro de arredondamento.
+function minimaCotaCentesimos(minima){ return Math.round(minima * FATOR_NOTA_COTA * 100); }
+
+function ehCotista(item){ return !!(item.ppp || item.pcd || item.ind); }
 
 // Uma pendência é qualquer valor que NÃO seja o "tudo certo" esperado da
 // coluna. É de propósito o inverso do usual (listar o que é problema): assim
@@ -364,7 +380,8 @@ function pendenciasDaLinhaFabrica(reg){
   const disc = semAcento(limpar(reg.discursivas)).toUpperCase();
   if(monit && monit !== 'COMPORTAMENTO OK') p.push(limpar(reg.monitoramento));
   if(facial && facial !== 'APROVADO') p.push('Reconhecimento facial: '+limpar(reg.facial));
-  if(disc && disc !== 'CORRIGIDAS') p.push('Discursivas: '+limpar(reg.discursivas));
+  // a Fábrica escreve "Corrigida" no relatório; "Corrigidas" segue aceito
+  if(disc && disc !== 'CORRIGIDA' && disc !== 'CORRIGIDAS') p.push('Discursivas: '+limpar(reg.discursivas));
   return p;
 }
 
@@ -388,6 +405,7 @@ function lerMatrizFabrica(linhas){
   if(iAprov < 0) throw new Error('Não encontrei a coluna "Aprovado" no relatório.');
 
   const iMonit = col('MONITORAMENTO'), iFacial = col('RECONHECIMENTO FACIAL'), iDisc = col('DISCURSIVAS');
+  const iMinima = col('MINIMA');
   const registros = [], semSituacao = [];
 
   for(let r=iCab+1;r<linhas.length;r++){
@@ -407,6 +425,7 @@ function lerMatrizFabrica(linhas){
       nome,
       chave: chaveNome(nome),
       nota: iNota>=0 ? paraNumero(l[iNota]) : null,
+      minima: iMinima>=0 ? paraNumero(l[iMinima]) : null,
       aprovado,
       situacao: bruto,
       monitoramento: iMonit>=0 ? l[iMonit] : '',
@@ -451,13 +470,20 @@ function lerRelatorioFabrica(file){
 
 /* Cruza o relatório com os inscritos lidos do PDF. Não altera nada em
    silêncio: devolve o que casou, o que não casou e as pendências, e quem
-   chama decide o que mostrar. */
-function cruzarComFabrica(inscritos, dadosFabrica){
+   chama decide o que mostrar.
+
+   `opcoes.cotaNota` liga a regra da cota (ver o cabeçalho desta seção): o
+   cotista que a Fábrica reprovou com nota entre 80% da mínima e a mínima
+   vem marcado, com `cotaAbaixoMinima` no inscrito, e volta em `cotaAbaixo`
+   para virar aviso. Com a regra desligada, os mesmos candidatos ficam
+   desmarcados e voltam em `cotaIgnorada`, também para aviso. */
+function cruzarComFabrica(inscritos, dadosFabrica, opcoes){
+  const cotaNota = !!(opcoes && opcoes.cotaNota);
   const porChave = {};
   inscritos.forEach(it=>{ const c = chaveNome(it.nome); if(c && !porChave[c]) porChave[c] = it; });
 
-  const semPar = [], comPendencia = [];
-  let marcados = 0, desmarcados = 0, notas = 0;
+  const semPar = [], comPendencia = [], cotaAbaixo = [], cotaIgnorada = [];
+  let marcados = 0, desmarcados = 0, notas = 0, minimaPadrao = false;
 
   dadosFabrica.registros.forEach(reg=>{
     const it = reg.chave ? porChave[reg.chave] : null;
@@ -468,14 +494,34 @@ function cruzarComFabrica(inscritos, dadosFabrica){
       return;
     }
     it.marcado = reg.aprovado === true;
+    it.cotaAbaixoMinima = false;
     it.fabrica = { situacao: reg.situacao, nota: reg.nota, aprovado: reg.aprovado, pendencias: reg.pendencias };
     if(reg.nota != null){ it.notaFabrica = reg.nota; notas++; }
+
+    // regra da cota: só para quem a Fábrica reprovou, é cotista e tem nota
+    if(reg.aprovado === false && reg.nota != null && ehCotista(it)){
+      if(reg.minima == null) minimaPadrao = true;
+      const minima = reg.minima != null ? reg.minima : NOTA_MINIMA_PADRAO;
+      const notaC = Math.round(reg.nota * 100);
+      const limiteC = minimaCotaCentesimos(minima);
+      if(notaC >= limiteC && notaC < Math.round(minima * 100)){
+        const caso = { nome: it.nome, nota: reg.nota, limite: limiteC / 100, minima, reserva: reservaTexto(it) };
+        if(cotaNota){
+          it.marcado = true;
+          it.cotaAbaixoMinima = true;
+          cotaAbaixo.push(caso);
+        } else {
+          cotaIgnorada.push(caso);
+        }
+      }
+    }
+
     if(it.marcado) marcados++; else desmarcados++;
-    if(reg.pendencias.length) comPendencia.push({ nome: it.nome, itens: reg.pendencias, aprovado: reg.aprovado });
+    if(reg.pendencias.length) comPendencia.push({ nome: it.nome, itens: reg.pendencias, aprovado: reg.aprovado, pelaCota: it.cotaAbaixoMinima });
   });
 
   return {
-    marcados, desmarcados, notas, semPar, comPendencia,
+    marcados, desmarcados, notas, semPar, comPendencia, cotaAbaixo, cotaIgnorada, minimaPadrao,
     semSituacao: dadosFabrica.semSituacao,
     duplicados: dadosFabrica.duplicados,
     total: dadosFabrica.registros.length
@@ -633,7 +679,7 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
   // etapa opcional do Passo 1 — relatório de aprovados da Fábrica de Provas
   const cvUsarFabrica=$('cvUsarFabrica'), cvFabricaPainel=$('cvFabricaPainel'),
         cvArquivoFabrica=$('cvArquivoFabrica'), cvBtnArquivoFabrica=$('cvBtnArquivoFabrica'),
-        cvNomeArquivoFabrica=$('cvNomeArquivoFabrica');
+        cvNomeArquivoFabrica=$('cvNomeArquivoFabrica'), cvCotaNota=$('cvCotaNota');
   const cvPasso2=$('cvPasso2'), cvChecklist=$('cvChecklist'), cvResumoSelecao=$('cvResumoSelecao'),
         cvBuscaNome=$('cvBuscaNome'),
         cvBtnMarcarTodos=$('cvBtnMarcarTodos'), cvBtnDesmarcarTodos=$('cvBtnDesmarcarTodos'),
@@ -771,11 +817,33 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
     // cruzamento com o relatório da Fábrica (etapa opcional)
     let avisoFabrica = false;
     if(dadosFabrica){
-      const cz = cruzarComFabrica(estado.inscritos, dadosFabrica);
+      const cz = cruzarComFabrica(estado.inscritos, dadosFabrica, { cotaNota: !!(cvCotaNota && cvCotaNota.checked) });
       msg += '<br><br><strong>Relatório da Fábrica:</strong> '+cz.total+' candidato(s) lido(s) — '
-        + '<strong>'+cz.marcados+' aprovado(s)</strong> já marcado(s) para convocação e '
-        + cz.desmarcados+' desmarcado(s)'
+        + '<strong>'+cz.marcados+' aprovado(s)</strong> já marcado(s) para convocação'
+        + (cz.cotaAbaixo.length ? ' (incluído(s) '+cz.cotaAbaixo.length+' cotista(s) pela regra dos 20%)' : '')
+        + ' e '+cz.desmarcados+' desmarcado(s)'
         + (cz.notas ? '. Nota da prova preenchida para '+cz.notas+' candidato(s)' : '')+'.';
+
+      // regra da cota: a Fábrica marcou (Reprovado), a ferramenta marcou como
+      // aprovado — sempre avisado, com nome, reserva e nota
+      const casoCota = x=>'<li>'+esc(x.nome)+' — '+esc(x.reserva)+' — nota '+esc(fmtNota(x.nota))
+        +' (mínima '+esc(fmtNota(x.minima))+', cotista a partir de '+esc(fmtNota(x.limite))+')</li>';
+      if(cz.cotaAbaixo.length){
+        avisoFabrica = true;
+        msg += '<br><strong style="color:var(--stamp-red)">'+cz.cotaAbaixo.length+' cotista(s) com nota abaixo da mínima selecionado(s) pela regra dos 20%</strong> — '
+          + 'a Fábrica marcou (Reprovado), mas a nota é igual ou maior que 80% da mínima. No Passo 2 a linha fica em vermelho claro; confira antes de convocar:';
+        msg += lista(cz.cotaAbaixo, casoCota, 20);
+      }
+      if(cz.cotaIgnorada.length){
+        avisoFabrica = true;
+        msg += '<br><strong style="color:var(--stamp-red)">'+cz.cotaIgnorada.length+' cotista(s) com nota entre 80% da mínima e a mínima ficaram desmarcados</strong> — '
+          + 'a caixa "O edital prevê nota até 20% inferior à mínima para cotistas" estava desmarcada. Se o edital prevê a regra, marque a caixa e processe de novo:';
+        msg += lista(cz.cotaIgnorada, casoCota, 20);
+      }
+      if(cz.minimaPadrao){
+        avisoFabrica = true;
+        msg += '<br>Atenção: o relatório não traz a nota mínima (coluna "Mínima") para todos os candidatos — para a regra da cota foi usada a mínima '+esc(fmtNota(NOTA_MINIMA_PADRAO))+'.';
+      }
 
       if(cz.semPar.length){
         avisoFabrica = true;
@@ -798,7 +866,7 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
         avisoFabrica = true;
         msg += '<br><strong style="color:var(--stamp-red)">'+cz.comPendencia.length+' candidato(s) com pendência na prova</strong> — '
           + 'a marcação seguiu a coluna Aprovado, confira antes de convocar:';
-        msg += lista(cz.comPendencia, x=>'<li>'+esc(x.nome)+(x.aprovado?' (Aprovado)':'')+' — '+esc(x.itens.join('; '))+'</li>');
+        msg += lista(cz.comPendencia, x=>'<li>'+esc(x.nome)+(x.pelaCota?' (selecionado pela regra da cota)':(x.aprovado?' (Aprovado)':''))+' — '+esc(x.itens.join('; '))+'</li>');
       }
     }
 
@@ -825,11 +893,38 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
     const f = it.fabrica;
     const cor = f.aprovado === true ? 'var(--teal)' : (f.aprovado === false ? 'var(--stamp-red)' : 'var(--ink-soft)');
     const rot = f.aprovado === true ? 'Aprovado' : (f.aprovado === false ? 'Reprovado' : 'situação não reconhecida');
-    let h = '<strong style="color:'+cor+';">'+esc(rot)+'</strong>';
+    let h = it.cotaAbaixoMinima
+      ? '<strong style="color:var(--teal);">Aprovado pela cota</strong>'
+      : '<strong style="color:'+cor+';">'+esc(rot)+'</strong>';
     if(f.nota != null) h += ' <span style="color:var(--ink-soft);">· nota '+esc(fmtNota(f.nota))+'</span>';
+    if(it.cotaAbaixoMinima)
+      h += '<div style="font-size:11px;color:var(--stamp-red);">A Fábrica marcou (Reprovado): nota abaixo da mínima, dentro dos 20% do cotista</div>';
     if(f.pendencias && f.pendencias.length)
       h += '<div style="font-size:11px;color:var(--stamp-red);">'+esc(f.pendencias.join('; '))+'</div>';
     return h;
+  }
+
+  /* Cor da linha do candidato (Passos 2 e 3) — só na tela. Vermelho claro:
+     cotista admitido pela regra dos 20% (cotaAbaixoMinima, gravado no
+     cruzamento com a Fábrica). Azul claro: os demais cotistas — no Passo 2,
+     só os aprovados pela Fábrica; no Passo 3, todos os que estão nas
+     tabelas, porque ali todos já foram selecionados para a convocação. */
+  function classeLinhaCota(item, soAprovados){
+    if(item.cotaAbaixoMinima) return 'cv-linha-cota-abaixo';
+    if(!ehCotista(item)) return '';
+    if(soAprovados && !(item.fabrica && item.fabrica.aprovado === true)) return '';
+    return 'cv-linha-cotista';
+  }
+
+  function legendaCores(itens, soAprovados){
+    const classes = itens.map(i=>classeLinhaCota(i, soAprovados));
+    const temAbaixo = classes.indexOf('cv-linha-cota-abaixo') >= 0;
+    const temCotista = classes.indexOf('cv-linha-cotista') >= 0;
+    if(!temAbaixo && !temCotista) return '';
+    return '<p class="cv-legenda">'
+      + (temAbaixo ? '<span class="cv-amostra cv-amostra-cota-abaixo">vermelho claro</span> cotista com nota abaixo da mínima, admitido pela regra dos 20%'+(temCotista?' &nbsp;·&nbsp; ':'') : '')
+      + (temCotista ? '<span class="cv-amostra cv-amostra-cotista">azul claro</span> '+(soAprovados?'cotista aprovado':'cotista') : '')
+      + '</p>';
   }
 
   function renderChecklist(){
@@ -842,7 +937,8 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
     // a coluna da Fábrica só existe quando um relatório foi cruzado — sem
     // isso a tabela fica como sempre foi
     const temFabrica = estado.inscritos.some(i=>i.fabrica);
-    let h = '<div class="table-scroll"><table><thead><tr>'
+    let h = legendaCores(estado.inscritos, true)
+      + '<div class="table-scroll"><table><thead><tr>'
       + '<th style="width:34px;"></th><th>Nome</th><th style="width:180px;">Reserva de vaga</th>'
       + (temFabrica ? '<th style="width:190px;">Prova (Fábrica)</th>' : '')
       + '</tr></thead><tbody>';
@@ -850,7 +946,8 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
       h += '<tr><td colspan="'+(temFabrica?4:3)+'" class="empty-hint">Nenhum nome bate com o filtro.</td></tr>';
     }
     visiveis.forEach(it=>{
-      h += '<tr><td style="text-align:center;"><input type="checkbox" class="cvChkInsc" data-id="'+it.id+'"'+(it.marcado?' checked':'')+'></td>'
+      const cls = classeLinhaCota(it, true);
+      h += '<tr'+(cls?' class="'+cls+'"':'')+'><td style="text-align:center;"><input type="checkbox" class="cvChkInsc" data-id="'+it.id+'"'+(it.marcado?' checked':'')+'></td>'
         + '<td>'+esc(it.nome)+'</td><td>'+esc(reservaTexto(it))+'</td>';
       if(temFabrica) h += '<td>'+etiquetaFabrica(it)+'</td>';
       h += '</tr>';
@@ -889,7 +986,8 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
     estado.cands = marcados.map(it=>({
       id: estado.seq++, nome: it.nome.toUpperCase(), nascimento: it.nascimento||'',
       nota: (it.notaFabrica != null ? it.notaFabrica : null), hora:null,
-      ac:true, ppp:it.ppp, pcd:it.pcd, ind:it.ind
+      ac:true, ppp:it.ppp, pcd:it.pcd, ind:it.ind,
+      cotaAbaixoMinima: !!it.cotaAbaixoMinima
     }));
     estado.editando = false;
     estado.trabalho = [];
@@ -909,7 +1007,82 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
 
      Excluir dentro da tabela AMPLA CONCORRÊNCIA remove o candidato por
      inteiro (todo mundo tem que estar na Ampla); excluir nas demais tabelas
-     só desmarca aquela cota específica. */
+     só desmarca aquela cota específica.
+
+     Seleção de várias linhas (só no modo de edição): clique numa linha
+     seleciona só ela, Shift+clique pega o intervalo até a última linha
+     clicada (a âncora) e Ctrl+clique — Cmd no Mac — soma ou tira uma linha.
+     A seleção vale dentro de UMA tabela, porque "Remover selecionados"
+     segue a regra do ✕ daquela tabela. Clique comum dentro de um campo
+     continua sendo digitação; com Shift ou Ctrl, vira seleção. */
+
+  const selecao = { grupo:null, ids:new Set(), ancora:null };
+  function limparSelecao(){ selecao.grupo = null; selecao.ids.clear(); selecao.ancora = null; }
+
+  // Tira da seleção quem não está mais na tabela (excluído, cota tirada).
+  function podarSelecao(){
+    if(!selecao.grupo) return;
+    const vivos = new Set(candidatosDoGrupo(estado.trabalho, selecao.grupo).map(c=>c.id));
+    selecao.ids.forEach(id=>{ if(!vivos.has(id)) selecao.ids.delete(id); });
+    if(selecao.ancora!=null && !vivos.has(selecao.ancora)) selecao.ancora = null;
+  }
+
+  function selecionarLinha(id, grupoK, ctrl, shift){
+    if(selecao.grupo !== grupoK){ limparSelecao(); selecao.grupo = grupoK; }
+    const ordem = candidatosDoGrupo(estado.trabalho, grupoK).map(c=>c.id);
+    const iAncora = selecao.ancora!=null ? ordem.indexOf(selecao.ancora) : -1;
+    if(shift && iAncora >= 0){
+      // a âncora não muda: outro Shift+clique refaz o intervalo a partir dela
+      const iAlvo = ordem.indexOf(id);
+      if(!ctrl) selecao.ids.clear();
+      for(let i=Math.min(iAncora,iAlvo); i<=Math.max(iAncora,iAlvo); i++) selecao.ids.add(ordem[i]);
+    } else if(ctrl){
+      if(selecao.ids.has(id)) selecao.ids.delete(id); else selecao.ids.add(id);
+      selecao.ancora = id;
+    } else {
+      // clique simples na única linha selecionada desfaz a seleção
+      const soEla = selecao.ids.size===1 && selecao.ids.has(id);
+      selecao.ids.clear();
+      if(!soEla) selecao.ids.add(id);
+      selecao.ancora = id;
+    }
+    pintarSelecao();
+  }
+
+  // Atualiza só as classes e o botão — sem redesenhar a tabela, para não
+  // perder o foco de um campo em digitação.
+  function pintarSelecao(){
+    Array.prototype.forEach.call(cvTabelas.querySelectorAll('tbody tr[data-id]'), function(tr){
+      const sel = tr.dataset.grupo===selecao.grupo && selecao.ids.has(Number(tr.dataset.id));
+      tr.classList.toggle('cv-sel', sel);
+    });
+    const btn = $('cvBtnRemoverSel'), btnLimpar = $('cvBtnLimparSel');
+    if(!btn) return;
+    const n = selecao.ids.size;
+    btn.disabled = !n;
+    btn.textContent = 'Remover selecionados' + (n ? ' ('+n+')' : '');
+    if(btnLimpar) btnLimpar.disabled = !n;
+    const g = GRUPOS_CV.find(x=>x.k===selecao.grupo);
+    btn.title = !n ? 'Selecione linhas com clique, Shift+clique ou Ctrl+clique'
+      : (selecao.grupo==='ac' ? 'Exclui os selecionados de todas as tabelas' : 'Tira os selecionados só da tabela '+(g?g.rot:''));
+  }
+
+  function removerSelecionados(){
+    const n = selecao.ids.size;
+    if(!n) return;
+    const grupoK = selecao.grupo;
+    const g = GRUPOS_CV.find(x=>x.k===grupoK);
+    const pergunta = grupoK==='ac'
+      ? 'Excluir '+n+' candidato(s) selecionado(s) de TODAS as tabelas?'
+      : 'Tirar '+n+' candidato(s) selecionado(s) da tabela '+g.rot+'? Eles continuam na Ampla Concorrência e nas demais cotas em que estiverem.';
+    if(!confirm(pergunta)) return;
+    if(grupoK==='ac') estado.trabalho = estado.trabalho.filter(c=>!selecao.ids.has(c.id));
+    else estado.trabalho.forEach(c=>{ if(selecao.ids.has(c.id)) c[grupoK] = false; });
+    limparSelecao();
+    renderTabelas();
+    avisarRemocao(n+' candidato(s) '+(grupoK==='ac' ? 'excluído(s) de todas as tabelas' : 'tirado(s) da tabela '+g.rot)
+      +'. Nada é gravado até clicar em "Salvar alterações".');
+  }
 
   function tabelaTela(grupo, editando){
     const base = editando ? estado.trabalho : estado.cands;
@@ -921,7 +1094,7 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
       return h;
     }
     const mostrarHora = estado.cols.hora;
-    h += '<div class="table-scroll" style="max-height:none;"><table class="cv-grade-table" style="white-space:normal;">';
+    h += '<div class="table-scroll" style="max-height:none;"><table class="cv-grade-table'+(editando?' cv-selecionavel':'')+'" style="white-space:normal;">';
     h += '<thead><tr>'+(editando?'<th style="width:30px;"></th>':'')
       + '<th style="width:62px;white-space:nowrap;">ORDEM</th><th>NOME</th>'
       + '<th style="width:132px;white-space:nowrap;" title="Só para conferência — não vai para o edital impresso">IDADE</th>'
@@ -930,7 +1103,10 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
       + (editando?'<th style="width:44px;">Ações</th>':'')+'</tr></thead><tbody>';
     lista_.forEach((c,i)=>{
       const idadeTxt = fmtIdadeDetalhada(c.nascimento);
-      h += '<tr data-id="'+c.id+'" data-grupo="'+grupo.k+'" draggable="false">';
+      const classes = [classeLinhaCota(c, false)];
+      if(editando && selecao.grupo===grupo.k && selecao.ids.has(c.id)) classes.push('cv-sel');
+      const cls = classes.filter(Boolean).join(' ');
+      h += '<tr data-id="'+c.id+'" data-grupo="'+grupo.k+'"'+(cls?' class="'+cls+'"':'')+' draggable="false">';
       if(editando){
         h += '<td style="text-align:center;"><button type="button" class="drag-handle" data-id="'+c.id+'" data-grupo="'+grupo.k+'" tabindex="0"'
           + ' title="Arrastar para reordenar (ou Alt+↑ / Alt+↓)" aria-label="Remanejar '+escAttr(c.nome||'linha em branco')+'">⠿</button></td>';
@@ -966,28 +1142,39 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
         + 'Os campos brancos podem ser corrigidos — a nota e o horário são a mesma pessoa em toda tabela. '
         + 'A coluna <strong>IDADE</strong> é só para conferência (calculada a partir da data de nascimento lida no Passo 1) — não vai para o edital impresso. '
         + '<strong>✕</strong> na tabela <strong>AMPLA CONCORRÊNCIA</strong> exclui o candidato por completo; nas demais, só tira daquela cota. '
+        + 'Para tirar várias linhas de uma vez, clique numa linha (no número da ordem ou na idade) para selecioná-la, '
+        + '<strong>Shift+clique</strong> em outra para pegar o intervalo e <strong>Ctrl+clique</strong> (Cmd no Mac) para somar ou tirar uma linha; '
+        + 'depois use <strong>Remover selecionados</strong>, que segue a mesma regra do ✕ (Esc limpa a seleção). '
         + '<strong>Nada é salvo até clicar em "Salvar alterações"</strong> — o botão "Gerar edital" avisa e não deixa prosseguir se as tabelas ainda estiverem em edição.</div>';
       h += '<div class="download-row" style="margin:14px 0 22px;">'
         + '<button type="button" class="link-btn" id="cvBtnSalvarTabelas" style="background:var(--teal);color:var(--white);">Salvar alterações</button>'
         + '<button type="button" class="link-btn" id="cvBtnCancelarTabelas">Cancelar</button>'
         + '<button type="button" class="link-btn" id="cvBtnReordenarNota">Reordenar por nota e idade</button>'
+        + '<span style="width:1px;align-self:stretch;background:var(--line);"></span>'
+        + '<button type="button" class="link-btn" id="cvBtnRemoverSel" disabled>Remover selecionados</button>'
+        + '<button type="button" class="link-btn" id="cvBtnLimparSel" disabled>Limpar seleção</button>'
         + '</div>';
-      h += '<div id="cvAvisosTabelas"></div>';
+      podarSelecao();
     }
+    h += '<div id="cvAvisosTabelas"></div>';
+    h += legendaCores(estado.editando ? estado.trabalho : estado.cands, false);
     GRUPOS_CV.forEach(g=>{ h += tabelaTela(g, estado.editando); });
     cvTabelas.innerHTML = h;
-    if(estado.editando){ ligarEventosEdicaoTabelas(); atualizarAvisosTabelas(); }
+    if(estado.editando){ ligarEventosEdicaoTabelas(); pintarSelecao(); }
+    atualizarAvisosTabelas();
     cvBtnEditarTabelas.style.display = estado.editando ? 'none' : '';
   }
 
   function entrarEdicaoTabelas(){
     estado.trabalho = estado.cands.map(c=>Object.assign({}, c));
     estado.editando = true;
+    limparSelecao();
     renderTabelas();
   }
   function cancelarEdicaoTabelas(){
     estado.editando = false;
     estado.trabalho = [];
+    limparSelecao();
     renderTabelas();
   }
 
@@ -1002,10 +1189,19 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
     statusSalvoTimer = setTimeout(()=>{ cvStatusSalvo.textContent = ''; }, 5000);
   }
 
+  // Confirmação visível da remoção em lote, no mesmo lugar do "salvo".
+  function avisarRemocao(texto){
+    if(!cvStatusSalvo) return;
+    cvStatusSalvo.textContent = texto;
+    clearTimeout(statusSalvoTimer);
+    statusSalvoTimer = setTimeout(()=>{ cvStatusSalvo.textContent = ''; }, 8000);
+  }
+
   function salvarEdicaoTabelas(){
     estado.cands = estado.trabalho;
     estado.editando = false;
     estado.trabalho = [];
+    limparSelecao();
     renderTabelas();
     avisarSalvo();
   }
@@ -1050,13 +1246,27 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
   // Empate em nota onde pelo menos um dos empatados não tem data de
   // nascimento reconhecida: a ordem entre ELES não é decidida sozinha por
   // "Reordenar por nota e idade" — só avisada, pra ajuste manual.
+  //
+  // Também avisa (em edição ou não) quem entrou pela regra dos 20% do
+  // cotista mas não está mais em nenhuma tabela de cota: sem a cota, a nota
+  // abaixo da mínima não basta para a convocação.
   function atualizarAvisosTabelas(){
     const box = $('cvAvisosTabelas');
     if(!box) return;
-    const gruposSemIdade = gruposEmpatadosPorNota(estado.trabalho)
-      .filter(g=> g.some(c=>!parseDataNascimento(c.nascimento)));
-    if(!gruposSemIdade.length){ box.innerHTML=''; return; }
-    box.innerHTML = '<div class="notice-banner warn" style="margin:12px 0 0;margin-left:0;">'
+    const base = estado.editando ? estado.trabalho : estado.cands;
+    let h = '';
+    const semCota = base.filter(c=>c.cotaAbaixoMinima && !ehCotista(c));
+    if(semCota.length){
+      h += '<div class="notice-banner warn" style="margin:12px 0 0;margin-left:0;">'
+        + '<strong>'+semCota.length+' candidato(s) selecionado(s) pela regra dos 20% do cotista não estão mais em nenhuma tabela de cota</strong> — '
+        + 'a nota está abaixo da mínima, então sem a cota eles não deveriam ser convocados. Confira:'
+        + lista(semCota, c=>'<li>'+esc(c.nome||'(sem nome)')+' — nota '+esc(fmtNota(c.nota))+'</li>')
+        + '</div>';
+    }
+    const gruposSemIdade = estado.editando ? gruposEmpatadosPorNota(estado.trabalho)
+      .filter(g=> g.some(c=>!parseDataNascimento(c.nascimento))) : [];
+    if(!gruposSemIdade.length){ box.innerHTML = h; return; }
+    box.innerHTML = h + '<div class="notice-banner warn" style="margin:12px 0 0;margin-left:0;">'
       + '<strong>'+gruposSemIdade.length+' empate(s) em Nota sem idade pra desempatar sozinho</strong> — a ordem entre os nomes abaixo não foi decidida automaticamente, ajuste arrastando se for o caso:'
       + lista(gruposSemIdade, function(g){
           return '<li>Nota '+esc(fmtNota(g[0].nota))+': '+g.map(function(c){
@@ -1125,6 +1335,23 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
     $('cvBtnSalvarTabelas').addEventListener('click', salvarEdicaoTabelas);
     $('cvBtnCancelarTabelas').addEventListener('click', cancelarEdicaoTabelas);
     $('cvBtnReordenarNota').addEventListener('click', reordenarPorNotaEIdade);
+    $('cvBtnRemoverSel').addEventListener('click', removerSelecionados);
+    $('cvBtnLimparSel').addEventListener('click', ()=>{ limparSelecao(); pintarSelecao(); });
+
+    // mousedown (e não click) para o preventDefault impedir que o Shift
+    // selecione o texto da página e que o Ctrl/Shift+clique foque o campo
+    Array.prototype.forEach.call(q.querySelectorAll('tbody tr[data-id]'), function(tr){
+      tr.addEventListener('mousedown', function(ev){
+        if(ev.button !== 0) return;
+        if(ev.target.closest('.drag-handle, .row-del-btn')) return;
+        const ctrl = ev.ctrlKey || ev.metaKey;
+        if(ev.target.closest('input') && !ctrl && !ev.shiftKey) return;
+        ev.preventDefault();
+        selecionarLinha(Number(tr.dataset.id), tr.dataset.grupo, ctrl, ev.shiftKey);
+      });
+      // no Mac, Ctrl+clique abre o menu de contexto em vez de selecionar
+      tr.addEventListener('contextmenu', function(ev){ if(ev.ctrlKey) ev.preventDefault(); });
+    });
 
     // 'change' NUNCA chama renderTabelas() aqui — redesenhar a tabela inteira
     // no meio da transição de foco do Tab destrói o campo que acabou de
@@ -1237,6 +1464,9 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
   }
 
   cvBtnEditarTabelas.addEventListener('click', ()=>{ if(!estado.editando) entrarEdicaoTabelas(); });
+  document.addEventListener('keydown', function(ev){
+    if(ev.key==='Escape' && estado.editando && selecao.ids.size){ limparSelecao(); pintarSelecao(); }
+  });
 
   // "Colunas do edital": só resta a Hora, opcional (Objetiva/Discursiva/
   // Acertos saíram — a nota agora é um único campo, sempre presente).

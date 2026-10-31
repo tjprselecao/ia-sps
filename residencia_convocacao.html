@@ -45,6 +45,31 @@
      altura do campo pra bater com a do botão — sem isso a caixa do campo com
      botão media 1-2px diferente da dos campos vizinhos e a linha ficava torta. */
   #cvDadosEdital .campo-data-wrap{ height:34px; }
+  /* Destaque dos cotistas nos Passos 2 e 3 — só na tela, nunca no edital.
+     Vermelho claro: cotista com nota abaixo da mínima admitido pela regra
+     dos 20% (cruzarComFabrica). Azul claro: os demais cotistas. Gradações
+     oficiais do coral e do teal (docs/identidade-visual.md). O seletor com
+     .cv-grade-table empata com o "sem cor por linha" do core.css e vence por
+     vir depois; o outro vence o zebrado da tabela do Passo 2. */
+  table tbody tr.cv-linha-cota-abaixo,
+  table.cv-grade-table tbody tr.cv-linha-cota-abaixo{ background:#fbddd8; }
+  table tbody tr.cv-linha-cotista,
+  table.cv-grade-table tbody tr.cv-linha-cotista{ background:#d1e8eb; }
+  .cv-amostra{ padding:0 5px; color:var(--ink); }
+  .cv-amostra-cota-abaixo{ background:#fbddd8; }
+  .cv-amostra-cotista{ background:#d1e8eb; }
+  .cv-amostra-sel{ background:#f5d085; box-shadow:inset 3px 0 0 var(--navy); }
+  .cv-legenda{ font-size:12px; color:var(--ink-soft); margin:0 0 8px; }
+  .cv-legenda .cv-amostra{ margin-right:4px; }
+  /* Linhas selecionadas no modo de edição do Passo 3 (Shift/Ctrl+clique).
+     Dourado para não se confundir com o vermelho e o azul dos cotistas. */
+  table.cv-grade-table tbody tr.cv-sel{ background:#f5d085; }
+  table.cv-grade-table tbody tr.cv-sel td:first-child{ box-shadow:inset 3px 0 0 var(--navy); }
+  /* selecionado e cotista: a barra lateral guarda a cor da cota */
+  table.cv-grade-table tbody tr.cv-sel.cv-linha-cota-abaixo td:first-child{ box-shadow:inset 5px 0 0 var(--coral); }
+  table.cv-grade-table tbody tr.cv-sel.cv-linha-cotista td:first-child{ box-shadow:inset 5px 0 0 var(--teal); }
+  table.cv-grade-table.cv-selecionavel tbody td{ cursor:default; user-select:none; }
+  table.cv-grade-table.cv-selecionavel tbody td input{ user-select:text; }
 </style>
 </head><body><div class="sheet">
 <div id="institutional-placeholder"></div>
@@ -60,7 +85,7 @@
     <ul class="step-list">
       <li><strong>Passo 1</strong> — Lista de dados dos inscritos (PDF): traz nome e modalidade da inscrição.</li>
       <li><strong>Passo 2</strong> — conferência com checkbox e busca por nome: marque quem vai ser convocado.</li>
-      <li><strong>Passo 3</strong> — tabelas de rascunho, uma por cota, com Nota (e Horário, se usar) digitados à mão; reordene por arrastar e soltar ou pela Nota.</li>
+      <li><strong>Passo 3</strong> — tabelas de rascunho, uma por cota, com Nota (e Horário, se usar) digitados à mão; reordene por arrastar e soltar ou pela Nota; no modo de edição, selecione várias linhas com Shift+clique e Ctrl+clique para removê-las de uma vez.</li>
       <li><strong>Passo 4</strong> — dados do edital e geração dos blocos para o Athos.</li>
     </ul>
     <p class="step-desc">Um candidato cotista concorre em <strong>mais de uma tabela</strong>: sempre na Ampla Concorrência, mais a(s) cota(s) da modalidade da inscrição. É a mesma pessoa em todas — corrigir o nome, a nota ou o horário em qualquer tabela atualiza automaticamente as demais em que ela aparece.</p>
@@ -102,12 +127,21 @@
         A prova foi aplicada pela <strong>Fábrica de Provas</strong> — tenho o relatório de aprovados
       </label>
       <div id="cvFabricaPainel" style="display:none;margin-top:12px;">
-        <p class="step-desc" style="margin-left:0;">Envie o <strong>Relatório de aprovados</strong> (.xlsx) baixado da Fábrica. Os candidatos marcados como <strong>(Aprovado)</strong> já vêm selecionados no Passo 2, com a <strong>nota</strong> preenchida; os <strong>(Reprovado)</strong> entram na lista desmarcados. O cruzamento é feito <strong>pelo nome</strong> — é o único identificador que o relatório traz.</p>
+        <p class="step-desc" style="margin-left:0;">Envie o <strong>Relatório de aprovados</strong> (.xlsx) baixado da Fábrica. Os candidatos marcados como <strong>(Aprovado)</strong> já vêm selecionados no Passo 2, com a <strong>nota</strong> preenchida; os <strong>(Reprovado)</strong> entram na lista desmarcados (exceto o cotista dentro dos 20%, abaixo). O cruzamento é feito <strong>pelo nome</strong> — é o único identificador que o relatório traz.</p>
         <div class="upload-panel">
           <input type="file" id="cvArquivoFabrica" accept=".xlsx,.xls">
           <button type="button" class="file-btn" id="cvBtnArquivoFabrica">Escolher relatório (.xlsx)</button>
           <span class="file-name" id="cvNomeArquivoFabrica">nenhum arquivo escolhido</span>
         </div>
+        <!-- A Fábrica não conhece a regra da cota e marca como (Reprovado)
+             todo mundo abaixo da mínima, inclusive o cotista admitido com
+             nota até 20% inferior. Ligada por padrão; o item é opcional no
+             Edital de Abertura, por isso pode ser desligada. -->
+        <label class="campo-check" style="margin-top:12px;">
+          <input type="checkbox" id="cvCotaNota" checked>
+          O edital prevê nota até <strong>20% inferior à mínima</strong> para cotistas (item 6.1.3 ou 7.1.3 do Edital de Abertura)
+        </label>
+        <p class="step-desc" style="margin-left:0;margin-top:6px;">Com a caixa marcada, o cotista que a Fábrica reprovou com nota igual ou maior que 80% da mínima (4,80 quando a mínima é 6) entra selecionado como os aprovados, com a linha em <span class="cv-amostra cv-amostra-cota-abaixo">vermelho claro</span> e aviso. Os demais cotistas aprovados aparecem em <span class="cv-amostra cv-amostra-cotista">azul claro</span>.</p>
       </div>
     </div>
 

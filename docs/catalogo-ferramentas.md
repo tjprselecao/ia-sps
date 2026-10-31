@@ -186,10 +186,14 @@ As três ferramentas compartilham utilitários copiados (`semAcento`, `chaveNome
 - Há uma única ordem de trabalho, e cada tabela é um recorte dela (`moverParaAoLadoDe`).
 - A modalidade é mapeada por `reservaDaModalidade`, sobre `TJPRCore.reconhecerReserva`. A VS (2.1.4) **não** marca cota na Residência e gera aviso.
 - **Desempate:** `reordenarPorNotaEIdade`, com a nota decrescente e, no empate, o mais velho pela data.
-- O relatório da Fábrica é cruzado por nome (`cruzarComFabrica`): os aprovados já vêm marcados e com nota, e as pendências de monitoramento são sinalizadas.
+- O relatório da Fábrica é cruzado por nome (`cruzarComFabrica`): os aprovados já vêm marcados e com nota, e as pendências de monitoramento são sinalizadas. Nas Discursivas, "Corrigida" e "Corrigidas" são o valor normal.
+- **Regra da cota na nota mínima** (desde a v3.26; caixa `cvCotaNota`, marcada por padrão): a Fábrica reprova todo mundo abaixo da mínima, inclusive o cotista. O cotista com nota ≥ 80% da coluna "Mínima" (`minimaCotaCentesimos`; 6 → 4,80) e abaixo dela vem marcado, com `cotaAbaixoMinima` no inscrito e no candidato, e aviso com nome, cota e nota. Com a caixa desmarcada, os mesmos casos ficam desmarcados e também geram aviso (`cotaIgnorada`). Sem a coluna "Mínima", vale `NOTA_MINIMA_PADRAO` (6), com aviso. A comparação é em centésimos inteiros, porque 6×0,8 dá 4,800000000000001 em ponto flutuante.
+- **Cores só na tela** (`classeLinhaCota`; CSS na própria página): vermelho claro `#fbddd8` para `cotaAbaixoMinima`; azul claro `#d1e8eb` para os demais cotistas (no Passo 2, só os aprovados pela Fábrica; no Passo 3, todos). Com legenda acima das tabelas. Nada disso sai no edital.
 - Excluir na tabela da Ampla remove o candidato de tudo; nas outras tabelas, só desmarca aquela cota.
+- **Seleção de várias linhas** (modo de edição do Passo 3; objeto `selecao`): clique seleciona uma, Shift+clique pega o intervalo a partir da âncora, Ctrl/Cmd+clique soma ou tira uma linha. Clique comum dentro de um campo continua sendo digitação. A seleção vale para uma tabela por vez, e "Remover selecionados" segue a regra do ✕. A linha selecionada fica dourada; se for de cotista, a barra lateral guarda a cor da cota.
+- Aviso no Passo 3 quando um candidato com `cotaAbaixoMinima` deixa de estar em todas as tabelas de cota.
 
-**Saída:** 6 blocos do Athos (Times 11pt, estilos em linha), PDF e rascunho .json (`versao:2`). O Bloco 3 sai só com o número do processo.
+**Saída:** 6 blocos do Athos (Times 11pt, estilos em linha), PDF e rascunho .json (`versao:2`; o campo `cotaAbaixoMinima` é opcional e rascunhos antigos abrem sem ele). O Bloco 3 sai só com o número do processo.
 
 ### Gerador do Edital de Classificação Final — `residencia_classificacao.html`
 

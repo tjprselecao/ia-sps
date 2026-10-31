@@ -16,6 +16,15 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.26", data:"2026-10-31", titulo:"Convocação da Residência: cotista dentro dos 20% da nota mínima, cores por cota e remoção de várias linhas",
+    itens:["Com o relatório da Fábrica, o cotista que ela marcou como (Reprovado) com nota abaixo da mínima, mas igual ou maior que 80% dela (4,80 quando a mínima é 6), passa a entrar selecionado como os aprovados. A linha dele fica em vermelho claro nos Passos 2 e 3, e um aviso no Passo 1 lista nome, cota e nota de cada um.",
+           "Nova caixa \"O edital prevê nota até 20% inferior à mínima para cotistas\" no painel da Fábrica, marcada por padrão. Desmarcada, esses cotistas ficam desmarcados e também são listados em aviso. A mínima vem da coluna \"Mínima\" do relatório; sem ela, vale 6, com aviso.",
+           "Os demais cotistas aparecem em azul claro: no Passo 2, os aprovados pela Fábrica; no Passo 3, todos os que estão nas tabelas. As cores ficam só na tela e não saem no edital, no Athos nem no PDF.",
+           "No modo de edição do Passo 3, clique numa linha para selecioná-la, Shift+clique para pegar um intervalo (ex.: do 50º ao 85º) e Ctrl+clique (Cmd no Mac) para somar ou tirar uma linha. O novo botão \"Remover selecionados\" segue a regra do ✕: na Ampla Concorrência exclui de todas as tabelas; numa tabela de cota, tira só daquela cota. Pede confirmação, e Esc limpa a seleção.",
+           "Novo aviso no Passo 3 quando um candidato que entrou pela regra dos 20% deixa de estar em todas as tabelas de cota.",
+           "A pendência \"Discursivas: Corrigida\" deixa de aparecer para todos os candidatos: \"Corrigida\" é o valor normal da Fábrica."] },
+  { v:"3.25.3", data:"2026-10-29", titulo:"Caixa de rascunho recolhida ao abrir a página em todas as ferramentas",
+    itens:["No Edital de Abertura, no Ponto 14 e no Ponto 18, a caixa flutuante \"Rascunho\" passa a começar recolhida, mostrando só o título e o \"+\", como já acontecia nas ferramentas da Residência, no Resultado Final e no Editor do Fluxo. Um clique no \"+\" abre a caixa com os botões de salvar e abrir o rascunho e a nota de status."] },
   { v:"3.25.2", data:"2026-10-28", titulo:"Edital de Abertura: referência ao item da cota certa também na prova on-line",
     itens:["Na prova on-line, o item da classificação final (8.1) citava \"ressalvado o item 6.1.3\", mas nesse modelo o item da cota é o 7.1.3: a seção \"DA REALIZAÇÃO DAS PROVAS\" acrescenta uma posição à numeração. A ressalva passa a citar o número que o item da cota recebe no edital gerado, em qualquer modelo.",
            "Os rótulos do formulário (convocação para entrevista, empate, cota e composição da prova) e os avisos da leitura do formulário também passam a mostrar o número certo para a modalidade escolhida, e mudam junto quando o eixo é trocado."] },
