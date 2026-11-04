@@ -42,7 +42,20 @@ Uma ficha por página. As funções citadas estão no `_logic.js` da ferramenta,
   - consulta durante a prova;
   - webcam (só para prova on-line sem consulta).
 - Os campos editáveis ficam em `FIELDS`, com valor padrão, grupo e visibilidade por eixo.
-- `parseFormulario` lê o PDF do formulário por rótulos (`LABELS`).
+- `parseFormulario` lê o PDF do formulário por rótulos. Há **dois modelos de formulário**, reconhecidos por `formatoDoFormulario`:
+  - **antigo** (até 04/11/2026): rótulos em `LABELS`, fim em "Assinar e enviar para a unidade";
+  - **novo** (desde a v3.27): "Formulário para solicitação de abertura de processo seletivo de estagiários(as)", com itens numerados (1.1 a 7). Rótulos em `LABELS_NOVO`, fim em "7. ENCAMINHAMENTO". No PDF, cada pergunta sai numa linha e só a opção escolhida na de baixo. `ajustarDadosNovo` converte para as chaves do antigo, e `aplicarDados` trata os dois, com ramos `novo` onde a regra muda.
+- No modelo novo:
+  - **Rótulos repetidos** ("Quantidade:", "Peso de cada questão:", "Quantidade de horas:", "Informar a quantidade…") são resolvidos pela ordem e pelo 3º elemento do rótulo (`antesDe`). Chaves com `_` são só marcos que cortam os textos de orientação.
+  - **O travessão** de "segunda fase – entrevista" some na extração do PDF; a lista tem as variantes.
+  - **Itens dispensados** pela resposta anterior (`ausenciaEsperada`: "Qual", "Especificar", 4.2 sem entrevista, quantidade com "Todos") não entram no aviso de pergunta não localizada.
+  - **Unidade** (`aplicarUnidadeNovo`): vale o nome informado (1.1), em maiúsculas e marcado para conferência. O nome é comparado (`chaveUnidade`) com o da planilha para a sigla; divergência, sigla ausente (com sugestão por `siglasPorNome`) e nome em branco geram aviso.
+  - **Consulta** (3.4) vale para as duas modalidades. A webcam (3.5) só decide o modelo on-line sem consulta; consulta + webcam usa o modelo com consulta, com aviso.
+  - **Composição:** usa o peso das objetivas informado (4º parâmetro de `sugestaoComposicao`) e avisa se a soma não der 10.
+  - **Semestres** separados (`ordinalDoSemestre`): "0" ou em branco deixa vazio.
+  - **"Incluindo empates"** na entrevista leva a `DESEMPATE_TEXTO` = convocar todos os empatados.
+  - **Código de Ética** (5.2) não marca a caixa do Anexo I sozinho, por decisão do usuário. Ele aparece no quadro de conferência.
+  - **Respostas sem lugar no edital** (1.2, 1.3, 1.4, observações do 3.3, especificação do 3.4, 3.6, 5.2 e 6) vão para `respostasFormulario`: quadro "Outras respostas do formulário" na Etapa 2, só leitura, salvo no rascunho (campo opcional `respostasFormulario`).
 - A sigla da unidade sugere o nome por extenso (`nomeUnidadePorExtenso`). A sugestão fica **marcada para conferência** até a pessoa editar o campo.
 - Prazo e duração da prova são lidos de textos livres ("3 (três) horas", "das 9h às 12h") por `lerDuracao`. O que não for entendido fica em branco, com aviso.
 

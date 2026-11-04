@@ -11,6 +11,12 @@
   .ed-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; align-items:start; }
   .ed-campo{ display:flex; flex-direction:column; gap:4px; font-size:13px; }
   .ed-campo-full{ grid-column:1 / -1; }
+  /* quadro "Outras respostas do formulário" (modelo novo, só leitura) */
+  .ed-respostas-nota{ font-size:12px; color:var(--ink-soft); margin:-6px 0 10px; }
+  .ed-respostas{ display:grid; grid-template-columns:minmax(180px, 2fr) 3fr; gap:6px 16px; margin:0; font-size:13px; }
+  .ed-respostas dt{ font-weight:600; color:var(--ink); }
+  .ed-respostas dd{ margin:0; color:var(--ink); overflow-wrap:anywhere; }
+  .ed-respostas-vazio{ color:var(--ink-soft); font-style:italic; }
   .ed-campo > span{ font-weight:600; color:var(--ink); }
   .ed-campo input[type=text], .ed-campo select, .ed-campo textarea{
     font-family:'Barlow',system-ui,sans-serif; font-size:13px; padding:8px 10px;
@@ -108,7 +114,7 @@
      por estilo inline (ver espacoDoBloco em edital_logic.js) */
   .ed-bloco-conteudo p{ margin:0 0 8pt; }
   .ed-j{ text-align:justify; } .ed-c{ text-align:center; } .ed-b{ font-weight:bold; }
-  @media (max-width:640px){ .ed-grid{ grid-template-columns:1fr; } .ed-bloco-conteudo{ padding:18px 20px; } }
+  @media (max-width:640px){ .ed-grid, .ed-respostas{ grid-template-columns:1fr; } .ed-bloco-conteudo{ padding:18px 20px; } }
 </style>
 </head><body><div class="sheet">
 <div id="institutional-placeholder"></div>
@@ -117,7 +123,7 @@
 
   <div class="step step-info">
     <div class="step-head"><span class="step-num">i</span><p class="step-title">Como funciona</p></div>
-    <p class="step-desc">Envie o <strong>formulário de Abertura de Processo Seletivo</strong> respondido pela unidade (PDF do SEI). A ferramenta lê as respostas, identifica qual dos 40 modelos oficiais de edital se aplica e monta o texto completo, preenchendo os campos destacados. Antes de gerar, você confere e ajusta cada campo.</p>
+    <p class="step-desc">Envie o <strong>formulário de Abertura de Processo Seletivo</strong> respondido pela unidade (PDF do SEI). Vale tanto o modelo novo, com itens numerados (em uso desde 04/11/2026), quanto o antigo: a ferramenta reconhece qual é. Ela lê as respostas, identifica qual dos 40 modelos oficiais de edital se aplica e monta o texto completo, preenchendo os campos destacados. Antes de gerar, você confere e ajusta cada campo.</p>
     <p class="step-desc">Todo o processamento acontece no seu navegador — nenhum dado sai do computador. O trabalho pode ser salvo e retomado a qualquer momento pela caixa <strong>Rascunho</strong>, no canto inferior direito da tela: ela guarda os eixos do modelo e os campos preenchidos, não os ajustes feitos à mão em “Editar texto”.</p>
   </div>
 
@@ -207,11 +213,11 @@
 </footer>
 </div>
 
-<!-- Rascunho: caixa fixa, ao alcance em qualquer ponto da página -->
-<aside class="float-draft" id="edDraft">
+<!-- Rascunho: caixa fixa, sempre recolhida ao abrir a página -->
+<aside class="float-draft collapsed" id="edDraft">
   <div class="float-draft-head">
     <p class="float-draft-tit">Rascunho</p>
-    <button type="button" class="float-draft-toggle" id="edDraftToggle" title="Recolher" aria-expanded="true">–</button>
+    <button type="button" class="float-draft-toggle" id="edDraftToggle" title="Abrir" aria-expanded="false">+</button>
   </div>
   <div class="float-draft-body">
     <input type="file" id="edRascunho" accept="application/json">

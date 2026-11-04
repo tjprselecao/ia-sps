@@ -143,16 +143,19 @@ function fmtNota(x){ // número -> string pt-BR sem zeros inúteis
   let s=(Math.round(x*100)/100).toString().replace('.',',');
   return s;
 }
-function sugestaoComposicao(qObj, qDis, pesoDis){
+// pesoObj: peso de cada objetiva, que o formulário novo informa. Sem ele (modelo
+// antigo), o peso é deduzido assumindo nota total 10.
+function sugestaoComposicao(qObj, qDis, pesoDis, pesoObj){
   const num1 = v => { const m=String(v||'').match(/\d+/); return m?parseInt(m[0],10):0; };
   const numF = v => { const m=String(v||'').replace(',','.').match(/\d+(\.\d+)?/); return m?parseFloat(m[0]):0; };
   qObj=num1(qObj); qDis=num1(qDis);
-  const pd=numF(pesoDis);
+  const pd=numF(pesoDis), pObj=numF(pesoObj);
   const fem = n => n===1?'uma':(n===2?'duas':extensoInt(n));
   const partes=[];
   if(qObj>0){
     let po=null;
-    if(pd>0 && qDis>0) po=(10 - qDis*pd)/qObj;      // sugestão assumindo nota total 10
+    if(pObj>0) po=pObj;
+    else if(pd>0 && qDis>0) po=(10 - qDis*pd)/qObj;      // sugestão assumindo nota total 10
     const poS = (po && po>0) ? fmtNota(po) : '0,00';
     const poExt = extensoNota(poS) || 'zero vírgula zero zero';
     partes.push(qObj+' ('+fem(qObj)+') '+(qObj===1?'questão objetiva avaliada':'questões objetivas avaliadas')
@@ -268,7 +271,8 @@ async function pdfParaTexto(file){
   return out;
 }
 
-/* rótulos do formulário SEI, na ordem do documento */
+/* rótulos do formulário SEI, na ordem do documento — modelo ANTIGO (usado até
+   04/11/2026). O modelo novo tem a própria lista, LABELS_NOVO, logo abaixo. */
 const LABELS = [
  ['unidade_sigla',['Unidade titular o processo seletivo (SIGLA SEI):','Unidade titular o processo seletivo']],
  ['telefone',['Telefone para contato (caso a Divisão de Estágio necessite mais informações):','Telefone para contato']],
@@ -305,7 +309,98 @@ const LABELS = [
  ['conteudo',['Conteúdo programático:']]
 ];
 
+/* Modelo NOVO do formulário (a partir de 04/11/2026): "FORMULÁRIO PARA
+   SOLICITAÇÃO DE ABERTURA DE PROCESSO SELETIVO DE ESTAGIÁRIOS(AS)", com itens
+   numerados (1.1, 2.1…). No PDF assinado, cada pergunta sai numa linha e só a
+   opção escolhida na linha de baixo. As chaves são as mesmas do modelo antigo
+   onde a informação é a mesma, para aplicarDados tratar os dois juntos.
+
+   Vários rótulos se repetem ("Quantidade:", "Peso de cada questão:",
+   "Quantidade de horas:", "Informar a quantidade…"). Por isso a lista segue a
+   ordem do documento e usa o 3º elemento (antesDe) para que um rótulo só
+   valha antes do item seguinte — sem isso, um item omitido pegaria a resposta
+   do próximo. Chaves com "_" são só marcos: cortam a resposta anterior (os
+   textos de orientação do formulário) e não são lidas. */
+const LABELS_NOVO = [
+ ['unidade_sigla',['SIGLA SEI:']],
+ ['unidade_nome',['Nome da unidade:'],'vaga'],
+ ['vaga',['1.2. Há vaga disponível para contratação?']],
+ ['aproveitamento',['1.3. Haverá aproveitamento por outra unidade?']],
+ ['aproveitamento_qual',['Qual:'],'_contato'],
+ ['_contato',['1.4. Contato da unidade responsável pelo Processo Seletivo']],
+ ['responsavel',['Responsável pelo preenchimento:'],'_caracteristicas'],
+ ['email_unidade',['E-mail:'],'_caracteristicas'],
+ ['_caracteristicas',['2. CARACTERÍSTICAS DO PROCESSO SELETIVO']],
+ ['modalidade_ps',['2.1. Modalidade do processo seletivo:']],
+ ['modalidade_estagio',['2.2. Modalidade do estágio:']],
+ ['nivel',['2.3. Nível de ensino:']],
+ ['curso',['2.4. Área de conhecimento/curso:']],
+ ['_curso_fim',['Atenção: deverá existir, na unidade'],'_semestres'],
+ ['_semestres',['2.5. Semestre inicial e final']],
+ ['semestre_inicial',['Semestre inicial:'],'vigencia'],
+ ['semestre_final',['Semestre final:'],'vigencia'],
+ ['_semestres_fim',['Orientação: recomenda-se'],'vigencia'],
+ ['vigencia',['2.6. Vigência do processo seletivo:']],
+ ['_inscricao',['2.7. Prazo de inscrição']],
+ ['prazo_inscricao',['Quantidade de dias:'],'_prova'],
+ ['_inscricao_fim',['A data do início das inscrições será'],'_prova'],
+ ['_prova',['3. PROVA']],
+ ['_tempo',['3.1. Tempo para realização da prova']],
+ ['horas_prova',['Quantidade de horas:'],'_disponibilidade'],
+ ['_disponibilidade',['3.2. Em caso de prova on-line, período de disponibilidade da prova']],
+ ['prazo_prova',['Quantidade de horas:'],'_questoes'],
+ ['_questoes',['3.3. Tipo e distribuição das questões']],
+ ['q_objetivas',['Questões objetivas Quantidade:'],'observacoes'],
+ ['peso_objetivas',['Peso de cada questão:'],'_discursivas'],
+ ['_discursivas',['Questões discursivas']],
+ ['q_discursivas',['Quantidade:'],'observacoes'],
+ ['peso_discursivas',['Peso de cada questão:'],'observacoes'],
+ ['observacoes',['Observações sobre as questões/pesos:']],
+ ['consulta',['3.4. Haverá consulta durante a prova?']],
+ ['consulta_especificar',['Especificar:'],'mecanismos'],
+ ['mecanismos',['3.5. Mecanismos de segurança da prova on-line:']],
+ ['email_resp',['3.6. E-mail(s) dos(as) responsáveis pelo acesso à plataforma e/ou correção das questões discursivas:']],
+ ['_entrevista',['4. ENTREVISTA']],
+ // o travessão de "segunda fase – entrevista" some na extração do PDF
+ ['entrevista',['4.1. Haverá segunda fase – entrevista?','4.1. Haverá segunda fase - entrevista?','4.1. Haverá segunda fase entrevista?']],
+ ['qtd_convocados',['4.2. Quantidade de candidatos(as) convocados(as) para entrevista:'],'qtd_final'],
+ ['qtd_convocados_outra',['Informar a quantidade dos(as) melhores classificados(as):'],'qtd_final'],
+ ['qtd_final',['4.3. Quantidade de candidatos(as) que constarão na classificação final:']],
+ ['qtd_final_outra',['Informar a quantidade dos(as) melhores classificados(as):'],'_desempate'],
+ ['_desempate',['Critério de desempate: data de nascimento']],
+ ['_conteudo',['5. CONTEÚDO PROGRAMÁTICO']],
+ ['conteudo',['5.1. Conteúdos específicos:']],
+ ['conteudo_obrigatorio',['5.2. Conteúdo obrigatório']],
+ ['observacoes_unidade',['6. OBSERVAÇÕES DA UNIDADE:']]
+];
+// texto que encerra as respostas, em cada modelo
+const FIM_FORMULARIO = 'Assinar e enviar para a unidade';
+const FIM_FORMULARIO_NOVO = '7. ENCAMINHAMENTO';
+
+// O modelo novo começa pelos itens numerados "1. DADOS DA SOLICITAÇÃO" e
+// "1.1. Unidade titular do processo seletivo"; o antigo dizia "Unidade
+// titular o processo seletivo (SIGLA SEI)", sem numeração.
+function formatoDoFormulario(texto){
+  const t=String(texto||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ');
+  return /1\.1\. ?unidade titular do processo seletivo/.test(t) || /1\. ?dados da solicitacao/.test(t) ? 'novo' : 'antigo';
+}
+function rotulosDoFormato(formato){ return formato==='novo' ? LABELS_NOVO : LABELS; }
+// Modelo novo: itens que a própria resposta anterior dispensa e que, por isso,
+// podem nem sair no PDF — a falta deles não é aviso de "não localizada".
+function ausenciaEsperada(chave, d){
+  const r = k => String(d[k]||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  const semEntrevista = !/^sim/.test(r('entrevista'));
+  if(chave==='aproveitamento_qual') return !/^sim/.test(r('aproveitamento'));
+  if(chave==='consulta_especificar') return !/^sim/.test(r('consulta'));
+  if(chave==='qtd_convocados') return semEntrevista;
+  if(chave==='qtd_convocados_outra') return semEntrevista || /^todos/.test(r('qtd_convocados'));
+  if(chave==='qtd_final_outra') return /^todos/.test(r('qtd_final'));
+  return false;
+}
+
 function parseFormulario(texto){
+  const formato=formatoDoFormulario(texto);
+  const rotulos=rotulosDoFormato(formato);
   // nº SEI vem do texto bruto (aparece no cabeçalho/rodapé das páginas)
   const mSei = texto.match(/\d{7}-\d{2}\.\d{4}\.8\.16\.\d{4}/);
   // limpar cabeçalhos/rodapés de página do SEI
@@ -341,15 +436,15 @@ function parseFormulario(texto){
 
   // localizar cada rótulo em ordem
   const achados=[]; let cursor=0;
-  LABELS.forEach(([chave,rotulos,antesDe])=>{
+  rotulos.forEach(([chave,alternativas,antesDe])=>{
     let idx=-1, alvo='';
-    for(const r of rotulos){
+    for(const r of alternativas){
       alvo=normLabel(r);
       idx=CN.indexOf(alvo, cursor);
       if(idx!==-1) break;
     }
     if(idx!==-1 && antesDe){
-      const lim=LABELS.find(l=>l[0]===antesDe)[1]
+      const lim=rotulos.find(l=>l[0]===antesDe)[1]
         .map(r=>CN.indexOf(normLabel(r), cursor)).filter(i=>i!==-1);
       if(lim.length && idx>Math.min(...lim)) idx=-1;
     }
@@ -360,7 +455,9 @@ function parseFormulario(texto){
     achados.push({chave, ini:idx, fim});
     cursor=fim;
   });
-  let fimCorpo = CN.indexOf(normLabel('Assinar e enviar para a unidade'));
+  // no modelo novo o fim é procurado depois do último rótulo: "7. ENCAMINHAMENTO"
+  // poderia aparecer citado antes, numa resposta
+  let fimCorpo = formato==='novo' ? CN.indexOf(normLabel(FIM_FORMULARIO_NOVO), cursor) : CN.indexOf(normLabel(FIM_FORMULARIO));
   if(fimCorpo===-1) fimCorpo=C.length;
 
   const dados={};
@@ -378,7 +475,20 @@ function parseFormulario(texto){
     dados[a.chave]=v;
   }
   dados.num_sei = mSei ? mSei[0] : '';
+  dados.formato = formato;
+  if(formato==='novo') ajustarDadosNovo(dados);
   return dados;
+}
+
+/* Modelo novo -> as mesmas chaves que aplicarDados já entende do antigo.
+   Só o que muda de forma é convertido aqui; o que é novo (vaga, aproveitamento,
+   consulta, peso das objetivas…) segue com a própria chave. */
+function ajustarDadosNovo(d){
+  Object.keys(d).forEach(k=>{ if(k.charAt(0)==='_') delete d[k]; });
+  // resposta "-" (campo deixado com traço) equivale a em branco
+  Object.keys(d).forEach(k=>{ if(typeof d[k]==='string' && /^[-–—]$/.test(d[k].trim())) d[k]=''; });
+  // sobra do rótulo quando o travessão de "segunda fase – entrevista" é lido de outro jeito
+  if(d.entrevista) d.entrevista=d.entrevista.replace(/^[-–—]?\s*entrevista\s*\?\s*/i,'');
 }
 
 /* Quantidade de candidatos (entrevista / classificação final). A resposta vem
@@ -433,7 +543,98 @@ function resumoResposta(resp, outra){
   return o ? r+' / Informar quantidade: '+o : r;
 }
 
+/* ---- só do modelo novo do formulário ---- */
+
+// Nome de unidade comparável: sem acento, caixa, pontuação nem "ª"/"º".
+function chaveUnidade(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()
+    .replace(/[ªº°]/g,'').replace(/[^A-Z0-9]+/g,' ').trim();
+}
+// Siglas da planilha cujo nome por extenso, ou o nível mais específico da
+// cadeia, é igual ao nome informado — para sugerir a sigla certa quando a
+// informada não existe na planilha.
+function siglasPorNome(nome){
+  if(typeof UNIDADES_SEI==='undefined') return [];
+  const alvo=chaveUnidade(nome);
+  if(!alvo) return [];
+  return Object.keys(UNIDADES_SEI).filter(sg=>{
+    const bruto=UNIDADES_SEI[sg];
+    const niveis=String(bruto).split('|');
+    return chaveUnidade(nomeUnidadePorExtenso(bruto))===alvo || chaveUnidade(niveis[niveis.length-1])===alvo;
+  }).slice(0,5);
+}
+// "Semestre inicial/final" do formulário novo: "3", "3º", "3º (terceiro)",
+// "terceiro". Vazio ou "0" (pós-graduação) -> ''; não reconhecido -> null.
+const ORDINAIS_EXTENSO=['primeiro','segundo','terceiro','quarto','quinto','sexto','setimo','oitavo','nono','decimo'];
+function ordinalDoSemestre(v){
+  const t=String(v==null?'':v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  if(!t || /^[-–—]$/.test(t) || /^0+$/.test(t)) return '';
+  const m=t.match(/^(\d{1,2})\b/);
+  let n=m ? parseInt(m[1],10) : ORDINAIS_EXTENSO.findIndex(o=>new RegExp('^'+o+'\\b').test(t))+1;
+  return (n>=1 && n<=ORDINAIS.length) ? ORDINAIS[n-1] : null;
+}
+
+// Respostas do formulário novo que não entram no texto do edital: ficam num
+// quadro só de leitura na Etapa 2 (e no rascunho), para conferência.
+let respostasFormulario=[];
+function montarRespostasFormulario(d, avisos){
+  const v = k => String(d[k]==null?'':d[k]).trim();
+  const normR = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  respostasFormulario=[
+    ['1.1 Nome da unidade (informado)', v('unidade_nome')],
+    ['1.2 Há vaga disponível para contratação?', v('vaga')],
+    ['1.3 Haverá aproveitamento por outra unidade?', v('aproveitamento')+(v('aproveitamento_qual') ? ' — '+v('aproveitamento_qual') : '')],
+    ['1.4 Responsável pelo preenchimento', v('responsavel')],
+    ['1.4 E-mail', v('email_unidade')],
+    ['3.3 Observações sobre as questões/pesos', v('observacoes')],
+    ['3.4 Consulta durante a prova — especificar', v('consulta_especificar')],
+    ['3.6 E-mail(s) dos responsáveis pela plataforma/correção', v('email_resp')],
+    ['5.2 Conteúdo obrigatório', v('conteudo_obrigatorio')],
+    ['6 Observações da unidade', v('observacoes_unidade')]
+  ].map(([rotulo,valor])=>({rotulo, valor}));
+  if(/^nao/.test(normR(v('vaga'))))
+    avisos.push('Item 1.2 do formulário: não há vaga disponível agora — a unidade informou "'+v('vaga')+'". Confira se a abertura pode ser autorizada.');
+  else if(!v('vaga'))
+    avisos.push('Item 1.2 do formulário (vaga disponível para contratação) sem resposta. Confira com a unidade.');
+  if(/^sim/.test(normR(v('aproveitamento'))))
+    avisos.push('Item 1.3 do formulário: haverá aproveitamento por outra unidade'+(v('aproveitamento_qual') ? ' ("'+v('aproveitamento_qual')+'")' : ', mas o campo "Qual" está em branco')+'. O edital não muda; confira a ordem de contratação com a unidade.');
+  if(v('observacoes')) avisos.push('A unidade fez observações sobre as questões/pesos (item 3.3): "'+v('observacoes')+'". Confira a composição da prova.');
+  if(v('observacoes_unidade')) avisos.push('A unidade deixou observações no item 6 do formulário: "'+v('observacoes_unidade')+'". Leia antes de gerar o edital.');
+}
+
+// Unidade solicitante pelo modelo novo: vale o nome informado pela unidade
+// (1.1), comparado com o da planilha para a sigla informada — divergência,
+// sigla ausente da planilha ou nome em branco sempre geram aviso.
+function aplicarUnidadeNovo(d, avisos){
+  const sigla=String(d.unidade_sigla||'').trim();
+  const nome=String(d.unidade_nome||'').replace(/\s+/g,' ').trim();
+  const bruto=(sigla && typeof UNIDADES_SEI!=='undefined') ? UNIDADES_SEI[sigla.toUpperCase()] : undefined;
+  const nomePlanilha=bruto ? nomeUnidadePorExtenso(bruto) : '';
+  if(nome){
+    values.UNIDADE=nome.toUpperCase();
+    camposParaConferir.add('UNIDADE');
+    if(nomePlanilha && chaveUnidade(nome)===chaveUnidade(nomePlanilha)){
+      avisos.push('Campo "Unidade solicitante" preenchido com o nome informado pela unidade, que confere com a planilha de unidades do TJPR para a sigla "'+sigla+'". Confira antes de gerar o edital.');
+    } else if(nomePlanilha){
+      avisos.push('Nome da unidade diferente da planilha de unidades do TJPR: o formulário informa "'+nome+'"; a planilha, para a sigla "'+sigla+'", traz "'+nomePlanilha+'". Foi usado o nome informado pela unidade — confira qual deve constar no edital.');
+    } else {
+      const outras=siglasPorNome(nome);
+      avisos.push((sigla ? 'Sigla SEI "'+sigla+'" não encontrada na planilha de unidades do TJPR' : 'O formulário não traz a sigla SEI da unidade')
+        +' — "Unidade solicitante" preenchida com o nome informado pela unidade ("'+nome+'"), sem comparação com a planilha.'
+        +(outras.length ? ' Na planilha, esse nome corresponde à sigla '+outras.map(x=>'"'+x+'"').join(', ')+'.' : '')
+        +' Confira.');
+    }
+  } else if(nomePlanilha){
+    values.UNIDADE=nomePlanilha;
+    camposParaConferir.add('UNIDADE');
+    avisos.push('O formulário não traz o nome da unidade (item 1.1) — "Unidade solicitante" preenchida pela planilha de unidades do TJPR, a partir da sigla "'+sigla+'". Confira.');
+  } else {
+    avisos.push((sigla ? 'Sigla SEI "'+sigla+'" não encontrada na planilha de unidades do TJPR' : 'O formulário não traz a sigla SEI nem o nome da unidade')+' — preencha "Unidade solicitante" manualmente.');
+  }
+}
+
 function aplicarDados(d, avisos){
+  const novo = d.formato==='novo';
   const norm = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   // Unidade solicitante: tenta casar a sigla SEI lida do formulário com a
   // planilha de unidades do TJPR (UNIDADES_SEI, ver edital_unidades_sei.js).
@@ -442,7 +643,9 @@ function aplicarDados(d, avisos){
   // automática (ver nomeUnidadePorExtenso) e pode não bater 100% com a forma
   // oficial. Nunca decide silenciosamente: sem sigla localizada, ou sem
   // correspondência na planilha, o campo continua vazio como hoje.
-  if(d.unidade_sigla){
+  // No modelo novo, o formulário traz também o nome (ver aplicarUnidadeNovo).
+  if(novo) aplicarUnidadeNovo(d, avisos);
+  else if(d.unidade_sigla){
     const siglaLida=d.unidade_sigla.trim();
     const bruto=(typeof UNIDADES_SEI!=='undefined') ? UNIDADES_SEI[siglaLida.toUpperCase()] : undefined;
     if(bruto){
@@ -464,8 +667,27 @@ function aplicarDados(d, avisos){
   if(axes.obrig==='S' && axes.nivel!=='G'){ avisos.push('Estágio obrigatório só possui modelo para Graduação — nível ajustado para Graduação.'); axes.nivel='G'; }
   if(d.entrevista){ axes.entrev = /sim/i.test(d.entrevista) ? 'S' : 'N'; }
   else avisos.push('Resposta sobre 2ª fase (entrevista) não localizada — confira o eixo.');
-  // consulta/webcam
-  if(axes.modal==='ON'){
+  // consulta/webcam. O modelo novo pergunta a consulta à parte (3.4), também
+  // para a prova presencial; o mecanismo (3.5) só decide a webcam da prova
+  // on-line sem consulta — a única combinação que tem webcam nos modelos.
+  if(novo){
+    const c=norm(d.consulta||'').trim();
+    if(/^sim/.test(c)) axes.consulta='S';
+    else if(/^nao/.test(c)) axes.consulta='N';
+    else { axes.consulta='N'; avisos.push('Resposta sobre consulta durante a prova (item 3.4) não localizada — assumido "sem consulta". Confira o eixo.'); }
+    const mec=norm(d.mecanismos||'');
+    if(axes.modal==='ON' && axes.consulta==='N'){
+      if(/webcam/.test(mec)) axes.webcam='S';
+      else if(/travamento/.test(mec)) axes.webcam='N';
+      else { axes.webcam='N'; avisos.push('Mecanismo de segurança da prova on-line (item 3.5) não identificado — assumido "sem webcam". Confira.'); }
+    } else {
+      axes.webcam='-';
+      if(axes.modal==='ON' && /webcam/.test(mec))
+        avisos.push('O formulário marca consulta durante a prova (item 3.4) e "'+String(d.mecanismos).trim()+'" (item 3.5), mas nenhum modelo oficial combina consulta e webcam. Foi usado o modelo com consulta, em que a webcam não aparece — confira o eixo.');
+      else if(axes.modal==='PR' && mec.trim())
+        avisos.push('O item 3.5 (mecanismo de segurança da prova on-line) veio preenchido ("'+String(d.mecanismos).trim()+'"), mas a prova é presencial — não se aplica.');
+    }
+  } else if(axes.modal==='ON'){
     const mec=norm(d.mecanismos||'');
     if(/consulta livre/.test(mec)){ axes.consulta='S'; axes.webcam='-'; }
     else if(/webcam/.test(mec) && !/sem necessidade/.test(mec)){ axes.consulta='N'; axes.webcam='S'; }
@@ -484,7 +706,14 @@ function aplicarDados(d, avisos){
     values.CURSO = achado || (c ? 'em '+c : '');
     if(!achado && c) avisos.push('Curso "'+c+'" não consta da lista oficial de cursos dos modelos — texto mantido como digitado.');
   }
-  if(d.semestres){
+  if(novo){
+    const o1=ordinalDoSemestre(d.semestre_inicial), o2=ordinalDoSemestre(d.semestre_final);
+    values.PERIODO_INICIAL=o1||''; values.PERIODO_FINAL=o2||'';
+    if(o1===null) avisos.push('Semestre inicial "'+String(d.semestre_inicial).trim()+'" não reconhecido — escolha no campo "Semestre inicial".');
+    if(o2===null) avisos.push('Semestre final "'+String(d.semestre_final).trim()+'" não reconhecido — escolha no campo "Semestre final".');
+    if(axes.nivel!=='P' && o1!==null && o2!==null && (!o1 || !o2))
+      avisos.push('Semestre inicial e/ou final não informado no formulário (item 2.5) — sem os dois, o trecho "cursando do … ao … semestre" fica de fora do edital. Confira.');
+  } else if(d.semestres){
     const nums=d.semestres.match(/\d+/g);
     if(nums && nums.length>=2){
       const o1=ORDINAIS[parseInt(nums[0],10)-1], o2=ORDINAIS[parseInt(nums[1],10)-1];
@@ -517,6 +746,9 @@ function aplicarDados(d, avisos){
     }
   } else {
     avisos.push('Quantidade de candidatos da classificação final não localizada no formulário — mantido o padrão (10 melhores). Confira.');
+  }
+  if(novo && axes.entrev==='S' && /incluindo empates/.test(norm(d.qtd_convocados||''))){
+    values.DESEMPATE_TEXTO=FIELDS.DESEMPATE_TEXTO.opts[0];
   }
   if(axes.entrev==='S' && d.desempate_entrevista && /idade|nascimento/i.test(d.desempate_entrevista)){
     values.DESEMPATE_TEXTO='será utilizado critério de desempate (data de nascimento)';
@@ -551,8 +783,18 @@ function aplicarDados(d, avisos){
     if(o) values.PRAZO_DISPONIBILIZACAO=fmtDuracao(o);
     else if(axes.modal==='ON') avisos.push('Prazo para realização da prova informado pela unidade ("'+d.prazo_prova+'") não foi reconhecido — preencha o campo "Prazo de disponibilização da prova on-line" manualmente.');
   }
-  values.COMPOSICAO_PROVA = sugestaoComposicao(d.q_objetivas, d.q_discursivas, d.peso_discursivas) || values.COMPOSICAO_PROVA;
-  if(values.COMPOSICAO_PROVA && d.q_objetivas && d.q_discursivas && d.peso_discursivas)
+  values.COMPOSICAO_PROVA = sugestaoComposicao(d.q_objetivas, d.q_discursivas, d.peso_discursivas, novo ? d.peso_objetivas : null) || values.COMPOSICAO_PROVA;
+  if(novo){
+    // o formulário novo informa os dois pesos; a soma deve dar 10
+    const n = x => { const m=String(x||'').replace(',','.').match(/\d+(\.\d+)?/); return m?parseFloat(m[0]):0; };
+    const total=n(d.q_objetivas)*n(d.peso_objetivas)+n(d.q_discursivas)*n(d.peso_discursivas);
+    if(total && Math.abs(total-10)>0.001)
+      avisos.push('A soma dos pesos informados no item 3.3 dá '+fmtNota(total)+' ponto(s), e não 10 — confira a composição da prova com a unidade.');
+    if(n(d.q_objetivas)>0 && !n(d.peso_objetivas))
+      avisos.push('Peso das questões objetivas não informado no item 3.3 — confira a composição da prova.');
+    if(n(d.q_discursivas)>0 && !n(d.peso_discursivas))
+      avisos.push('Peso das questões discursivas não informado no item 3.3 — confira a composição da prova.');
+  } else if(values.COMPOSICAO_PROVA && d.q_objetivas && d.q_discursivas && d.peso_discursivas)
     avisos.push('Composição da prova sugerida assumindo nota total 10 — confira o peso das questões objetivas.');
   // "a definir"/"a confirmar" não é local: sem opção pronta, só o ensalamento
   const localInformado = v => !!v && v.trim()!=='-' && !/^a (definir|confirmar)\b|^nao (definido|informado)/.test(norm(v.trim()));
@@ -568,6 +810,8 @@ function aplicarDados(d, avisos){
       && !/^conteudo programatico:?$/.test(norm(l))
       && !/^codigo de etica e conduta do poder judiciario\.?$/.test(norm(l))).join('\n');
   }
+  if(novo) montarRespostasFormulario(d, avisos);
+  else respostasFormulario=[];
   if(!values.DATA_ASSINATURA) values.DATA_ASSINATURA = hojeExtenso();
 }
 
@@ -588,6 +832,16 @@ function renderAvisos(){
   box.innerHTML = lista.length
     ? '<div class="stamp-wrap show" style="margin-bottom:20px;"><div class="stamp warn">REVISAR</div><div class="stamp-text"><strong>Pontos de atenção:</strong><ul class="warn-list">'+lista.map(a=>'<li>'+esc(a)+'</li>').join('')+'</ul></div></div>'
     : '';
+}
+// Quadro só de leitura com as respostas do formulário novo que não entram no
+// edital (ver montarRespostasFormulario). Vazio no modelo antigo.
+function respostasFormularioHtml(){
+  if(!respostasFormulario.length) return '';
+  return '<div class="ed-grupo"><p class="ed-grupo-tit">Outras respostas do formulário</p>'
+    +'<p class="ed-respostas-nota">Só para conferência: estas respostas não entram no texto do edital.</p>'
+    +'<dl class="ed-respostas">'+respostasFormulario.map(r=>
+      '<dt>'+esc(r.rotulo)+'</dt><dd>'+(r.valor ? esc(r.valor).replace(/\n/g,'<br>') : '<span class="ed-respostas-vazio">em branco</span>')+'</dd>'
+    ).join('')+'</dl></div>';
 }
 function renderConfirma(avisos){
   const box=$('edConfirma');
@@ -643,10 +897,11 @@ function renderConfirma(avisos){
     return g;
   }
 
-  // ordem final: Identificação do edital -> eixos -> demais grupos
+  // ordem final: Identificação do edital -> eixos -> demais grupos -> outras respostas
   GRUPOS.forEach(([gid,gtit])=>{ if(gid==='ident') h+=grupoHtml(gid,gtit); });
   h+=hEixos;
   GRUPOS.forEach(([gid,gtit])=>{ if(gid!=='ident') h+=grupoHtml(gid,gtit); });
+  h+=respostasFormularioHtml();
   box.innerHTML=h;
   box.querySelectorAll('[data-eixo]').forEach(el=>el.addEventListener('change',()=>{
     axes[el.dataset.eixo]=el.value;
@@ -1105,7 +1360,11 @@ async function lerFormulario(){
     avisos.push('O PDF quase não contém texto extraível (pode ser digitalização/imagem). Confira todos os campos ou cole o texto manualmente.');
   }
   dadosLidos=parseFormulario(texto);
-  const naoLidos=LABELS.filter(([k])=>dadosLidos[k]===null).map(([k,r])=>r[0]);
+  const novo=dadosLidos.formato==='novo';
+  const naoLidos=rotulosDoFormato(dadosLidos.formato)
+    .filter(([k])=>k.charAt(0)!=='_' && dadosLidos[k]===null && !(novo && ausenciaEsperada(k, dadosLidos)))
+    .map(([k,r])=>r[0]);
+  if(novo) avisos.push('Formulário lido no modelo novo (itens numerados, em uso desde 04/11/2026).');
   if(naoLidos.length) avisos.push('Perguntas não localizadas no arquivo: '+naoLidos.join('; ')+'.');
   aplicarDados(dadosLidos, avisos);
   renderConfirma(avisos);
@@ -1141,7 +1400,8 @@ function exportarRascunho(){
     gerado:new Date().toISOString(),
     axes:Object.assign({}, axes),
     values:Object.assign({}, values),
-    incluirTribunal:incluirTribunal()
+    incluirTribunal:incluirTribunal(),
+    respostasFormulario:respostasFormulario.slice()
   };
   const blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json'});
   const a=document.createElement('a');
@@ -1164,6 +1424,10 @@ function importarRascunho(file){
       Object.keys(values).forEach(k=>{ if(d.values[k]!==undefined) values[k]=d.values[k]; });
       const cx=$('edIncluirTribunal');
       if(cx) cx.checked = !!d.incluirTribunal;
+      // opcional: rascunhos anteriores à v3.27 não têm o quadro
+      respostasFormulario = Array.isArray(d.respostasFormulario)
+        ? d.respostasFormulario.filter(r=>r && typeof r.rotulo==='string').map(r=>({rotulo:r.rotulo, valor:String(r.valor==null?'':r.valor)}))
+        : [];
       renderConfirma([]);
       $('edEtapa2').style.display='block';
       $('edEtapa2').scrollIntoView({behavior:'smooth'});
@@ -1265,5 +1529,5 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 /* hook para testes/depuração */
-if (typeof window!=='undefined') window.__ED_TEST__={parseFormulario, aplicarDados, gerarEditalHTML, gerarBlocos, sugestaoComposicao, axes, values, camposParaConferir, nomeUnidadePorExtenso, renderConfirma};
+if (typeof window!=='undefined') window.__ED_TEST__={parseFormulario, aplicarDados, formatoDoFormulario, ordinalDoSemestre, chaveUnidade, siglasPorNome, respostas:()=>respostasFormulario, gerarEditalHTML, gerarBlocos, sugestaoComposicao, axes, values, camposParaConferir, nomeUnidadePorExtenso, renderConfirma};
 })();
