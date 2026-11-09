@@ -43,6 +43,7 @@ const FIELDS = {
   INSCRICOES_SUBITEM: {grupo:'corpo', full:true, label:'Item 4.3.1 — Prazo das inscrições (deixe vazio para omitir o subitem)', type:'text', def:''},
   COMPOSICAO_PROVA:   {grupo:'prova', label:'Composição da prova (item {{item:COMPOSICAO_PROVA}})', type:'textarea', def:'', hint:'Ex.: 10 (dez) questões objetivas avaliadas em 0,5 (zero vírgula cinco) ponto cada e 1 (uma) questão discursiva avaliada em 5 (cinco) pontos'},
   PRAZO_DISPONIBILIZACAO:{grupo:'prova', label:'Prazo de disponibilização da prova on-line', type:'text', fmt:'duracao', def:'', hint:'Formato: 00h00min (ex.: 04h00min)', show:a=>a.modal==='ON'},
+  CONSULTA_ESPECIFICACAO:{grupo:'prova', full:true, label:'Item {{item:CONSULTA_ESPECIFICACAO}} — Consulta permitida durante a prova', type:'text', def:'lei seca', hint:'Entra no edital como "Poderá haver consulta durante a realização da prova, restrita a: [texto]." Deixe vazio para manter só a frase do modelo.', show:a=>a.consulta==='S'},
   DURACAO_PROVA:      {grupo:'prova', label:'Duração da prova', type:'text', fmt:'duracao', def:'03h00min', hint:'Formato: 00h00min (ex.: 04h00min)'},
   DATA_PROVA_PRESENCIAL:{grupo:'prova', label:'Data, horário e local da prova presencial', type:'preset', opts:['A data, o horário e o local de aplicação da prova serão divulgados por meio de Edital de Ensalamento, a ser disponibilizado na respectiva página do processo seletivo, no portal do TJPR.','A data, o horário e o local de aplicação da prova serão divulgados por meio de documento oficial de ensalamento.','A prova será realizada presencialmente em 00/00/0000, das 00h00min às 00h00min, no [LOCAL], situado à [ENDEREÇO].','A prova será realizada presencialmente em 00/00/0000, das 00h00min às 00h00min. O local de aplicação da prova será divulgado por meio de documento oficial de ensalamento.'], def:'A data, o horário e o local de aplicação da prova serão divulgados por meio de Edital de Ensalamento, a ser disponibilizado na respectiva página do processo seletivo, no portal do TJPR.', show:a=>a.modal==='PR'},
   LIMITE_CONVOCADOS:  {grupo:'prova', label:'Item {{item:LIMITE_CONVOCADOS}} — Quem será convocado para a entrevista', type:'preset', opts:LIMITES_61, def:'a todos os candidatos que atingirem a nota mínima', show:a=>a.entrev==='S'},
@@ -587,7 +588,6 @@ function montarRespostasFormulario(d, avisos){
     ['1.4 Responsável pelo preenchimento', v('responsavel')],
     ['1.4 E-mail', v('email_unidade')],
     ['3.3 Observações sobre as questões/pesos', v('observacoes')],
-    ['3.4 Consulta durante a prova — especificar', v('consulta_especificar')],
     ['3.6 E-mail(s) dos responsáveis pela plataforma/correção', v('email_resp')],
     ['5.2 Conteúdo obrigatório', v('conteudo_obrigatorio')],
     ['6 Observações da unidade', v('observacoes_unidade')]
@@ -600,6 +600,21 @@ function montarRespostasFormulario(d, avisos){
     avisos.push('Item 1.3 do formulário: haverá aproveitamento por outra unidade'+(v('aproveitamento_qual') ? ' ("'+v('aproveitamento_qual')+'")' : ', mas o campo "Qual" está em branco')+'. O edital não muda; confira a ordem de contratação com a unidade.');
   if(v('observacoes')) avisos.push('A unidade fez observações sobre as questões/pesos (item 3.3): "'+v('observacoes')+'". Confira a composição da prova.');
   if(v('observacoes_unidade')) avisos.push('A unidade deixou observações no item 6 do formulário: "'+v('observacoes_unidade')+'". Leia antes de gerar o edital.');
+}
+
+// Especificação da consulta (3.4 do modelo novo): entra depois de "restrita a:",
+// então sai o ponto final, o "apenas/somente" do início (redundante com
+// "restrita") e a maiúscula inicial — salvo sigla ("CLT") ou nome próprio de
+// duas palavras ("Vade Mecum", "Código Civil"). Quem chama mostra o texto
+// original no aviso quando houver ajuste.
+function ajustarEspecificacaoConsulta(s){
+  let t=String(s||'').replace(/\s+/g,' ').trim().replace(/[\s.;]+$/,'');
+  t=t.replace(/^(apenas|somente|exclusivamente|s[oó])\s+((a|ao|à|aos|às)\s+)?/i,'');
+  const [primeira='', segunda='']=t.split(/[\s,;/]+/);
+  const sigla=primeira.length>1 && primeira===primeira.toUpperCase();
+  const nomeProprio=/^[A-ZÀ-Ý]/.test(segunda);
+  if(!sigla && !nomeProprio) t=t.charAt(0).toLowerCase()+t.slice(1);
+  return t;
 }
 
 // Unidade solicitante pelo modelo novo: vale o nome informado pela unidade
@@ -697,6 +712,27 @@ function aplicarDados(d, avisos){
     axes.webcam='-';
     axes.consulta='N';
     avisos.push('O formulário não informa se a prova presencial permite consulta — assumido "sem consulta". Confira o eixo.');
+  }
+  // o que pode ser consultado: do 3.4 ("Especificar") no modelo novo; sem
+  // especificação (ou no modelo antigo), o padrão "lei seca" — sempre com aviso
+  const espec=novo ? String(d.consulta_especificar||'').replace(/\s+/g,' ').trim() : '';
+  values.CONSULTA_ESPECIFICACAO=FIELDS.CONSULTA_ESPECIFICACAO.def;
+  camposParaConferir.delete('CONSULTA_ESPECIFICACAO');
+  if(axes.consulta==='S'){
+    if(espec){
+      values.CONSULTA_ESPECIFICACAO=ajustarEspecificacaoConsulta(espec);
+      camposParaConferir.add('CONSULTA_ESPECIFICACAO');
+      avisos.push('Consulta durante a prova: a unidade especificou "'+espec+'" (item 3.4)'
+        +(values.CONSULTA_ESPECIFICACAO!==espec ? ', ajustado para "'+values.CONSULTA_ESPECIFICACAO+'" para caber na frase' : '')
+        +' — o item sai "Poderá haver consulta durante a realização da prova, restrita a: '+values.CONSULTA_ESPECIFICACAO+'." Confira o campo "Consulta permitida durante a prova".');
+    } else {
+      camposParaConferir.add('CONSULTA_ESPECIFICACAO');
+      avisos.push((novo ? 'O formulário marca consulta durante a prova (item 3.4), mas não especifica o que pode ser consultado'
+                        : 'O formulário (modelo antigo) não especifica o que pode ser consultado durante a prova')
+        +' — adotado o padrão "lei seca". Confira o campo "Consulta permitida durante a prova".');
+    }
+  } else if(espec){
+    avisos.push('O item 3.4 traz especificação de consulta ("'+espec+'"), mas o modelo ficou sem consulta — não entra no edital. Confira o eixo "Consulta durante a prova".');
   }
   // campos
   values.NUM_SEI = d.num_sei || values.NUM_SEI;
@@ -821,9 +857,12 @@ function aplicarDados(d, avisos){
 let avisosLeitura=[];
 function nomeCurto(lbl){ return String(lbl).replace(/\s*\([^)]*\)\s*$/,'').trim(); }
 function reqEmptyAvisos(){
-  return Object.keys(FIELDS)
+  const lista=Object.keys(FIELDS)
     .filter(k=>FIELDS[k].req && !String(values[k]||'').trim())
     .map(k=>'Campo obrigatório ainda não preenchido: "'+nomeCurto(FIELDS[k].label)+'".');
+  if(axes.consulta==='S' && !textoConsulta())
+    lista.push('Campo "Consulta permitida durante a prova" vazio — o item sai só com a frase do modelo ("'+FRASE_CONSULTA+'"), sem dizer o que pode ser consultado.');
+  return lista;
 }
 // (re)desenha o bloco REVISAR combinando obrigatórios vazios + avisos da leitura.
 function renderAvisos(){
@@ -870,9 +909,10 @@ function renderConfirma(avisos){
     campos.forEach(k=>{
       const f=FIELDS[k]; const v=values[k]||'';
       // preenchido automaticamente por correspondência (ex.: UNIDADE pela
-      // sigla SEI) — continua marcado mesmo com valor, até edição manual
-      const conferir=f.req && camposParaConferir.has(k);
-      const mostrarMarca=f.req && (conferir || !String(v).trim());
+      // sigla SEI, consulta pelo item 3.4) — continua marcado mesmo com
+      // valor, até edição manual
+      const conferir=camposParaConferir.has(k);
+      const mostrarMarca=conferir || (f.req && !String(v).trim());
       g+='<label class="ed-campo'+(f.full||f.type==='textarea'||f.type==='preset'?' ed-campo-full':'')+(f.req&&String(v).trim()&&!conferir?' ed-req-filled':'')+'"><span>'+esc(rotuloCampo(k, numeros))+':'+(mostrarMarca?' <span class="ed-req-mark">'+(conferir?'confira':'obrigatório')+'</span>':'')+'</span>';
       if(f.type==='select'){
         g+='<select data-campo="'+k+'">'+f.opts.map(o=>'<option'+(o===v?' selected':'')+'>'+esc(o)+'</option>').join('')+'</select>';
@@ -886,7 +926,7 @@ function renderConfirma(avisos){
       } else if(f.type==='check'){
         g+='<span style="font-weight:400;"><input type="checkbox" data-check="'+k+'"'+(v?' checked':'')+' style="width:auto;margin-right:8px;vertical-align:middle;">'+'Sim, incluir</span>';
       } else {
-        const reqCls=f.req?('ed-required'+(String(v).trim()?'':' ed-empty')+(conferir?' ed-conferir':'')):'';
+        const reqCls=(f.req?'ed-required'+(String(v).trim()?'':' ed-empty'):'')+(conferir?' ed-conferir':'');
         g+='<input type="text"'+(reqCls?' class="'+reqCls+'"':'')+' data-campo="'+k+'" value="'+esc(v).replace(/"/g,'&quot;')+'">';
       }
       if(f.hintHtml) g+='<small>'+f.hintHtml+'</small>';
@@ -912,6 +952,12 @@ function renderConfirma(avisos){
   }));
   box.querySelectorAll('[data-campo]').forEach(el=>el.addEventListener('input',()=>{
     const k=el.dataset.campo; values[k]=el.value;
+    if(FIELDS[k] && !FIELDS[k].req && camposParaConferir.has(k)){
+      camposParaConferir.delete(k);
+      el.classList.remove('ed-conferir');
+      const marca=el.closest('.ed-campo').querySelector('.ed-req-mark'); if(marca) marca.remove();
+    }
+    if(k==='CONSULTA_ESPECIFICACAO') renderAvisos();
     if(FIELDS[k] && FIELDS[k].req){
       // editar à mão já É a conferência: some o "confira" e o contorno vermelho
       camposParaConferir.delete(k);
@@ -967,6 +1013,8 @@ function linkify(h){
     return '<a href="'+url+'" target="_blank" rel="noopener">'+url+'</a>'+punct;
   });
 }
+const FRASE_CONSULTA='Poderá haver consulta durante a realização da prova.';
+function textoConsulta(){ return String(values.CONSULTA_ESPECIFICACAO||'').replace(/\s+/g,' ').trim().replace(/[\s.;]+$/,''); }
 function condOk(c){ if(!c) return true; return Object.keys(c).every(ax=>c[ax].indexOf(axes[ax])!==-1); }
 function subTokens(h, itemCota){
   // remoção do trecho de semestres quando vazios
@@ -989,8 +1037,14 @@ function subTokens(h, itemCota){
   if(values.INCLUIR_COTA_NEGROS && axes.entrev==='S' && itemCota && h.indexOf('média aritmética')!==-1 && h.indexOf('{{LIMITE_FINAL}}')!==-1){
     h=h.replace(', {{LIMITE_FINAL}}',', ressalvado o item '+itemCota+', {{LIMITE_FINAL}}');
   }
+  // item da consulta (modelos com consulta): o modelo só diz que "poderá haver";
+  // a especificação completa a frase. Campo vazio mantém a frase do modelo.
+  if(h===FRASE_CONSULTA && textoConsulta()){
+    h=h.replace(/\.$/,', restrita a: {{CONSULTA_ESPECIFICACAO}}.');
+  }
   h=h.replace(/\{\{(\w+)\}\}/g,(m,k)=>{
     if(k==='DESEMPATE_INTRO'||k==='DESEMPATE_TEXTO') return esc(values[k]||'');
+    if(k==='CONSULTA_ESPECIFICACAO') return esc(textoConsulta());
     return esc(values[k]!==undefined?values[k]:m);
   });
   return linkify(h);
@@ -1094,7 +1148,9 @@ function corpoEditalHTML(registro){
     if(p.h.indexOf('{{DESEMPATE_INTRO}}')!==-1 && !(values.DESEMPATE_INTRO||'').trim() && !(values.DESEMPATE_TEXTO||'').trim()){ registrar(p.h, proximo(p.l)); return; }
     const html=subTokens(p.h, reg.COTA);
     if(p.l==='free'){ partes.push('<p class="ed-j">'+html+'</p>'); return; }
-    registrar(p.h, emitir(p.l, html));
+    const num=emitir(p.l, html);
+    registrar(p.h, num);
+    if(p.h===FRASE_CONSULTA) reg.CONSULTA_ESPECIFICACAO=num;
     // subitem 4.3.1 (prazo das inscrições)
     if(p.h.indexOf('{{PERIODO_INSCRICOES}}')!==-1 && (values.INSCRICOES_SUBITEM||'').trim()){
       emitir(2, esc(values.INSCRICOES_SUBITEM.trim()));
@@ -1428,7 +1484,14 @@ function importarRascunho(file){
       respostasFormulario = Array.isArray(d.respostasFormulario)
         ? d.respostasFormulario.filter(r=>r && typeof r.rotulo==='string').map(r=>({rotulo:r.rotulo, valor:String(r.valor==null?'':r.valor)}))
         : [];
-      renderConfirma([]);
+      // rascunhos anteriores à v3.28 não têm a especificação da consulta
+      const avisosRascunho=[];
+      camposParaConferir.delete('CONSULTA_ESPECIFICACAO');
+      if(d.values.CONSULTA_ESPECIFICACAO===undefined){
+        values.CONSULTA_ESPECIFICACAO=FIELDS.CONSULTA_ESPECIFICACAO.def;
+        if(axes.consulta==='S') avisosRascunho.push('Rascunho anterior à especificação da consulta — adotado o padrão "lei seca" no campo "Consulta permitida durante a prova". Confira.');
+      }
+      renderConfirma(avisosRascunho);
       $('edEtapa2').style.display='block';
       $('edEtapa2').scrollIntoView({behavior:'smooth'});
       // se os blocos já estavam na tela, remonta com o que veio do rascunho
@@ -1529,5 +1592,5 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 /* hook para testes/depuração */
-if (typeof window!=='undefined') window.__ED_TEST__={parseFormulario, aplicarDados, formatoDoFormulario, ordinalDoSemestre, chaveUnidade, siglasPorNome, respostas:()=>respostasFormulario, gerarEditalHTML, gerarBlocos, sugestaoComposicao, axes, values, camposParaConferir, nomeUnidadePorExtenso, renderConfirma};
+if (typeof window!=='undefined') window.__ED_TEST__={parseFormulario, aplicarDados, ajustarEspecificacaoConsulta, numerosDosItens, pdfParaTexto, formatoDoFormulario, ordinalDoSemestre, chaveUnidade, siglasPorNome, respostas:()=>respostasFormulario, gerarEditalHTML, gerarBlocos, sugestaoComposicao, axes, values, camposParaConferir, nomeUnidadePorExtenso, renderConfirma};
 })();

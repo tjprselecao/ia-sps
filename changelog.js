@@ -16,6 +16,11 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.28", data:"2026-11-09", titulo:"Edital de Abertura: especificação da consulta durante a prova",
+    itens:["Nos modelos com consulta, o item sai \"Poderá haver consulta durante a realização da prova, restrita a: [especificação].\" O novo campo \"Consulta permitida durante a prova\", na Etapa 2, aparece só quando o eixo é \"Com consulta\" e pode ser editado como os demais.",
+           "No formulário novo, o campo vem do \"Especificar\" do item 3.4, com ajuste mínimo para caber na frase: tira o ponto final e o \"apenas\"/\"somente\" do início, e põe a primeira letra em minúscula, exceto em sigla ou nome próprio (ex.: \"Vade Mecum\"). O campo fica marcado para conferência, e o aviso mostra o texto original.",
+           "Sem especificação no formulário (ou no formulário antigo), vale o padrão \"lei seca\", com aviso. Com o campo vazio, o item volta à frase original do modelo, e um aviso aponta a falta. Especificação preenchida com o eixo \"Sem consulta\" também gera aviso.",
+           "A especificação sai do quadro \"Outras respostas do formulário\", porque agora é campo. Rascunhos anteriores abrem com o padrão \"lei seca\" quando há consulta, com aviso."] },
   { v:"3.27", data:"2026-11-04", titulo:"Edital de Abertura: leitura do novo formulário de solicitação de abertura",
     itens:["O gerador passa a ler o novo \"Formulário para solicitação de abertura de processo seletivo de estagiários(as)\", com itens numerados, em uso desde 04/11/2026. O formulário antigo continua aceito: a ferramenta reconhece sozinha qual é e avisa quando lê o modelo novo.",
            "No modelo novo, a pergunta sobre consulta durante a prova (item 3.4) define o eixo \"Consulta\" também na prova presencial, sem o antigo \"assumido sem consulta\". Com consulta e \"Utilização de webcam\" marcadas juntas, vale o modelo com consulta, com aviso, porque nenhum modelo oficial combina as duas.",

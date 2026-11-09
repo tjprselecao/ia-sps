@@ -51,11 +51,13 @@ Uma ficha por página. As funções citadas estão no `_logic.js` da ferramenta,
   - **Itens dispensados** pela resposta anterior (`ausenciaEsperada`: "Qual", "Especificar", 4.2 sem entrevista, quantidade com "Todos") não entram no aviso de pergunta não localizada.
   - **Unidade** (`aplicarUnidadeNovo`): vale o nome informado (1.1), em maiúsculas e marcado para conferência. O nome é comparado (`chaveUnidade`) com o da planilha para a sigla; divergência, sigla ausente (com sugestão por `siglasPorNome`) e nome em branco geram aviso.
   - **Consulta** (3.4) vale para as duas modalidades. A webcam (3.5) só decide o modelo on-line sem consulta; consulta + webcam usa o modelo com consulta, com aviso.
+  - **Especificação da consulta** (3.4, "Especificar") preenche o campo `CONSULTA_ESPECIFICACAO` (desde a v3.28), ajustado por `ajustarEspecificacaoConsulta` e marcado para conferência.
   - **Composição:** usa o peso das objetivas informado (4º parâmetro de `sugestaoComposicao`) e avisa se a soma não der 10.
   - **Semestres** separados (`ordinalDoSemestre`): "0" ou em branco deixa vazio.
   - **"Incluindo empates"** na entrevista leva a `DESEMPATE_TEXTO` = convocar todos os empatados.
   - **Código de Ética** (5.2) não marca a caixa do Anexo I sozinho, por decisão do usuário. Ele aparece no quadro de conferência.
-  - **Respostas sem lugar no edital** (1.2, 1.3, 1.4, observações do 3.3, especificação do 3.4, 3.6, 5.2 e 6) vão para `respostasFormulario`: quadro "Outras respostas do formulário" na Etapa 2, só leitura, salvo no rascunho (campo opcional `respostasFormulario`).
+  - **Respostas sem lugar no edital** (1.2, 1.3, 1.4, observações do 3.3, 3.6, 5.2 e 6) vão para `respostasFormulario`: quadro "Outras respostas do formulário" na Etapa 2, só leitura, salvo no rascunho (campo opcional `respostasFormulario`).
+- **Consulta durante a prova** (v3.28): o modelo só traz a frase fixa "Poderá haver consulta durante a realização da prova." (`FRASE_CONSULTA`). Com o campo `CONSULTA_ESPECIFICACAO` preenchido, `subTokens` completa a frase com ", restrita a: [texto]."; vazio, sai a frase do modelo, com aviso dinâmico em `reqEmptyAvisos`. O número do item vai para o rótulo do campo pelo registro de `corpoEditalHTML`. O padrão é "lei seca", usado quando há consulta sem especificação (formulário novo sem "Especificar", formulário antigo, rascunho anterior à v3.28), sempre com aviso. `camposParaConferir` também marca campos não obrigatórios ("confira" e contorno vermelho até a edição manual).
 - A sigla da unidade sugere o nome por extenso (`nomeUnidadePorExtenso`). A sugestão fica **marcada para conferência** até a pessoa editar o campo.
 - Prazo e duração da prova são lidos de textos livres ("3 (três) horas", "das 9h às 12h") por `lerDuracao`. O que não for entendido fica em branco, com aviso.
 

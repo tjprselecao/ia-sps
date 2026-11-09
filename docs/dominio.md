@@ -79,6 +79,8 @@ Implementado em `reordenarPorNotaEIdade` (Residência), no modo manual do Ponto 
 
 O Edital de Abertura oferece, para a convocação à entrevista, duas redações para o empate na nota de corte: "convocar todos os empatados" ou "critério de desempate (data de nascimento)". O Ponto 18 avisa quando há empate na menor nota convocada.
 
+**Consulta durante a prova (Edital de Abertura, desde a v3.28):** quando a prova permite consulta, o item diz o que pode ser consultado: "Poderá haver consulta durante a realização da prova, restrita a: …". A especificação vem do item 3.4 do formulário novo; sem ela, o padrão definido pela seção é **"lei seca"**.
+
 ## Formatos
 
 | Dado | Formato |
