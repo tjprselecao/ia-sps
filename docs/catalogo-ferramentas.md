@@ -50,7 +50,7 @@ Uma ficha por página. As funções citadas estão no `_logic.js` da ferramenta,
   - **O travessão** de "segunda fase – entrevista" some na extração do PDF; a lista tem as variantes.
   - **Itens dispensados** pela resposta anterior (`ausenciaEsperada`: "Qual", "Especificar", 4.2 sem entrevista, quantidade com "Todos") não entram no aviso de pergunta não localizada.
   - **Unidade** (`aplicarUnidadeNovo`): vale o nome informado (1.1), em maiúsculas e marcado para conferência. O nome é comparado (`chaveUnidade`) com o da planilha para a sigla; divergência, sigla ausente (com sugestão por `siglasPorNome`) e nome em branco geram aviso.
-  - **Consulta** (3.4) vale para as duas modalidades. A webcam (3.5) só decide o modelo on-line sem consulta; consulta + webcam usa o modelo com consulta, com aviso.
+  - **Consulta** (3.4) vale para as duas modalidades. A webcam (3.5) só decide o modelo on-line sem consulta; consulta + webcam usa o modelo com consulta, com aviso. A opção do travamento ("…, sem utilização de webcam") também contém a palavra "webcam", então é testada antes (corrigido na v3.28.1).
   - **Especificação da consulta** (3.4, "Especificar") preenche o campo `CONSULTA_ESPECIFICACAO` (desde a v3.28), ajustado por `ajustarEspecificacaoConsulta` e marcado para conferência.
   - **Composição:** usa o peso das objetivas informado (4º parâmetro de `sugestaoComposicao`) e avisa se a soma não der 10.
   - **Semestres** separados (`ordinalDoSemestre`): "0" ou em branco deixa vazio.

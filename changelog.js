@@ -16,6 +16,8 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.28.1", data:"2026-11-09", titulo:"Edital de Abertura: prova on-line só com travamento de abas não sai mais com webcam",
+    itens:["No formulário novo, a opção \"Travamento de consultas a outras abas, sem utilização de webcam\" (item 3.5) era lida como webcam, porque o texto dela contém a palavra. Agora ela leva ao modelo sem webcam. Só \"Utilização de webcam\" leva ao modelo com webcam."] },
   { v:"3.28", data:"2026-11-09", titulo:"Edital de Abertura: especificação da consulta durante a prova",
     itens:["Nos modelos com consulta, o item sai \"Poderá haver consulta durante a realização da prova, restrita a: [especificação].\" O novo campo \"Consulta permitida durante a prova\", na Etapa 2, aparece só quando o eixo é \"Com consulta\" e pode ser editado como os demais.",
            "No formulário novo, o campo vem do \"Especificar\" do item 3.4, com ajuste mínimo para caber na frase: tira o ponto final e o \"apenas\"/\"somente\" do início, e põe a primeira letra em minúscula, exceto em sigla ou nome próprio (ex.: \"Vade Mecum\"). O campo fica marcado para conferência, e o aviso mostra o texto original.",

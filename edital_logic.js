@@ -691,13 +691,17 @@ function aplicarDados(d, avisos){
     else if(/^nao/.test(c)) axes.consulta='N';
     else { axes.consulta='N'; avisos.push('Resposta sobre consulta durante a prova (item 3.4) não localizada — assumido "sem consulta". Confira o eixo.'); }
     const mec=norm(d.mecanismos||'');
+    // a opção do travamento também cita a webcam ("…, sem utilização de
+    // webcam"): ela precisa ser testada antes da palavra "webcam" sozinha
+    const semWebcam=/travamento|sem utilizacao de webcam/.test(mec);
+    const comWebcam=!semWebcam && /webcam/.test(mec);
     if(axes.modal==='ON' && axes.consulta==='N'){
-      if(/webcam/.test(mec)) axes.webcam='S';
-      else if(/travamento/.test(mec)) axes.webcam='N';
+      if(comWebcam) axes.webcam='S';
+      else if(semWebcam) axes.webcam='N';
       else { axes.webcam='N'; avisos.push('Mecanismo de segurança da prova on-line (item 3.5) não identificado — assumido "sem webcam". Confira.'); }
     } else {
       axes.webcam='-';
-      if(axes.modal==='ON' && /webcam/.test(mec))
+      if(axes.modal==='ON' && comWebcam)
         avisos.push('O formulário marca consulta durante a prova (item 3.4) e "'+String(d.mecanismos).trim()+'" (item 3.5), mas nenhum modelo oficial combina consulta e webcam. Foi usado o modelo com consulta, em que a webcam não aparece — confira o eixo.');
       else if(axes.modal==='PR' && mec.trim())
         avisos.push('O item 3.5 (mecanismo de segurança da prova on-line) veio preenchido ("'+String(d.mecanismos).trim()+'"), mas a prova é presencial — não se aplica.');
