@@ -16,6 +16,9 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.29", data:"2026-11-11", titulo:"Ponto 18: botão para reordenar os convocados por ordem alfabética",
+    itens:["Novo botão \"Reordenar por ordem alfabética\" no passo 2, ao lado de \"Reordenar por nota\". Como o de nota, ele ordena dentro de cada data/grupo e do \"A atribuir\", sem tirar ninguém do bloco. Acentos e maiúsculas não contam, e linhas sem nome vão para o fim.",
+           "Nos blocos com \"um horário por candidato\" que já tinham horários, eles são refeitos na nova ordem a partir do \"a partir de\" e do intervalo do bloco. Uma nota ao lado dos botões diz em quais blocos os horários foram refeitos, ou por que não foram (horário inicial inválido)."] },
   { v:"3.28.1", data:"2026-11-09", titulo:"Edital de Abertura: prova on-line só com travamento de abas não sai mais com webcam",
     itens:["No formulário novo, a opção \"Travamento de consultas a outras abas, sem utilização de webcam\" (item 3.5) era lida como webcam, porque o texto dela contém a palavra. Agora ela leva ao modelo sem webcam. Só \"Utilização de webcam\" leva ao modelo com webcam."] },
   { v:"3.28", data:"2026-11-09", titulo:"Edital de Abertura: especificação da consulta durante a prova",

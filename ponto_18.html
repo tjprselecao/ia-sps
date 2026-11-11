@@ -143,7 +143,9 @@
 
     <div class="upload-panel" style="margin-top:16px;">
       <button type="button" class="link-btn" id="p18BtnOrdenar">Reordenar por nota</button>
+      <button type="button" class="link-btn" id="p18BtnOrdenarNome">Reordenar por ordem alfabética</button>
       <button type="button" class="link-btn" id="p18BtnNovaLinha">Acrescentar linha em “A atribuir”</button>
+      <span class="file-name" id="p18NotaOrdenar"></span>
       <p class="count-note" id="p18Resumo" style="margin:0 0 0 auto;"></p>
     </div>
 
@@ -317,11 +319,11 @@
 </footer>
 </div>
 
-<!-- Rascunho: caixa fixa, ao alcance em qualquer ponto da página -->
-<aside class="float-draft" id="p18Draft">
+<!-- Rascunho: caixa fixa, sempre recolhida ao abrir a página -->
+<aside class="float-draft collapsed" id="p18Draft">
   <div class="float-draft-head">
     <p class="float-draft-tit">Rascunho</p>
-    <button type="button" class="float-draft-toggle" id="p18DraftToggle" title="Recolher" aria-expanded="true">–</button>
+    <button type="button" class="float-draft-toggle" id="p18DraftToggle" title="Abrir" aria-expanded="false">+</button>
   </div>
   <div class="float-draft-body">
     <input type="file" id="p18Rascunho" accept="application/json">

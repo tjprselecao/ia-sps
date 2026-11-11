@@ -1209,6 +1209,42 @@ function ordenarPorNota(){
   estado.dias.forEach(function(d){ saida=saida.concat(linhasDoDia(d.id).slice().sort(porNota)); });
   saida=saida.concat(naoAlocados().slice().sort(porNota));
   estado.cands=saida;
+  $('p18NotaOrdenar').textContent='';
+  renderQuadro();
+}
+
+// Ordem alfabética, também DENTRO de cada bloco (sem acento nem caixa, como o
+// normName do core; linhas sem nome vão para o fim). Com nomes em outra ordem,
+// o horário individual de cada um ficaria fora de sequência: nos blocos com
+// "um horário por candidato" que já tinham horários, eles são refeitos na nova
+// ordem a partir do "a partir de" e do intervalo — e a nota ao lado do botão
+// diz em quais blocos isso aconteceu (ou por que não deu).
+function ordenarPorNome(){
+  var porNome=function(a,b){
+    var na=C.normName(a.nome), nb=C.normName(b.nome);
+    if(!na || !nb) return (na?0:1)-(nb?0:1);
+    return na.localeCompare(nb,'pt-BR');
+  };
+  var saida=[], refeitos=[], semInicio=[];
+  estado.dias.forEach(function(d,k){
+    var lista=linhasDoDia(d.id).slice().sort(porNome);
+    saida=saida.concat(lista);
+    var comHora=comNome(lista).some(function(c){ return !!c.hora; });
+    if(d.horarioModo==='geral' || !comHora) return;
+    var ini=interpretarHora(d.horaInicial);
+    if(!ini){ semInicio.push(rotuloDia(k)); return; }
+    var passo=Number(d.intervalo)||0, min=ini.h*60+ini.m;
+    comNome(lista).forEach(function(c){
+      c.hora={h:Math.floor(min/60)%24, m:min%60};
+      min+=passo;
+    });
+    refeitos.push(rotuloDia(k)+' (a partir de '+fmtHora(ini)+', a cada '+passo+' min)');
+  });
+  saida=saida.concat(naoAlocados().slice().sort(porNome));
+  estado.cands=saida;
+  $('p18NotaOrdenar').textContent='Ordem alfabética aplicada em cada bloco.'
+    + (refeitos.length ? ' Horários refeitos na nova ordem: '+refeitos.join('; ')+'.' : '')
+    + (semInicio.length ? ' Horários NÃO refeitos (horário inicial inválido): '+semInicio.join('; ')+' — corrija o "a partir de" e use "Preencher horários".' : '');
   renderQuadro();
 }
 
@@ -2090,6 +2126,7 @@ function iniciar(){
   $('p18QuantosModo').addEventListener('change', sincronizarControles);
   $('p18BtnCriarData').addEventListener('click', criarData);
   $('p18BtnOrdenar').addEventListener('click', ordenarPorNota);
+  $('p18BtnOrdenarNome').addEventListener('click', ordenarPorNome);
   $('p18BtnNovaLinha').addEventListener('click', function(){
     estado.cands.push(novoCand());   // linha nova nasce em "A atribuir"
     renderQuadro();

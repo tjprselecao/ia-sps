@@ -116,6 +116,7 @@ Uma ficha por página. As funções citadas estão no `_logic.js` da ferramenta,
   - os dias são entidades próprias (quadro `.bloco-dia`; tudo começa em "A atribuir");
   - as colunas DATA e HORÁRIO são **derivadas** da alocação.
 - Avisa quando há empate na menor nota convocada.
+- **Reordenar** (passo 2): `ordenarPorNota` e `ordenarPorNome` (v3.29) ordenam **dentro de cada bloco**, sem desfazer a alocação. A ordem alfabética usa `TJPRCore.normName` + `localeCompare('pt-BR')`, com linhas sem nome no fim. Nos blocos com horário por candidato que já tinham horários, ela refaz os horários na nova ordem (mesma conta de `preencherHorariosDoDia`) e informa o que fez em `p18NotaOrdenar`. A ordenação por nota mantém o horário de cada pessoa.
 - Avisa quando falta o link da sala na modalidade on-line.
 - **Endereço em várias linhas** (v3.25): o campo do passo 3 é um `textarea`. `enderecoHtml` transforma cada linha numa quebra (`<br>`) dentro do mesmo parágrafo ENDEREÇO:, com o ponto final só no fim da última. Uma linha que seja só URL vira link.
 - **Um local por tabela** (v3.25, só no presencial): é a caixa `p18LocalPorTabela`, gravada em `estado.doc.localPorTabela`.
