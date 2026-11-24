@@ -189,6 +189,14 @@ Uma ficha por página. As funções citadas estão no `_logic.js` da ferramenta,
 
 As três ferramentas compartilham utilitários copiados (`semAcento`, `chaveNome`, `paraNumero` com digitação rápida, leitura de PDF por coordenadas, leitura da "Lista de dados dos inscritos"). Os grupos de cota são `ac`, `ppp`, `pcd` e `ind`.
 
+**Dois formatos de lista de inscritos** (as três leem os dois, cada uma com a própria cópia do código):
+- **Lista de dados** (o de sempre): `registroDaLinhaLista` usa a data de nascimento como marco do fim do nome. É tentada primeiro.
+- **Planilha exportada do Excel** (desde a v3.30): colunas Nº, Modalidade (inscrição), CPF, Nome Completo, Descricao Necessidade, Celular e E-mail, **sem nascimento**. `reconhecerLista` só cai em `reconhecerPlanilha` quando a Lista de dados não reconhece nada; o retorno traz `formato:'lista'|'planilha'`.
+  - A leitura é por coluna. `colunasDaPlanilha` acha o cabeçalho (só na 1ª página; vale para as seguintes) e o centro de cada coluna, e `celulasDaLinha` junta os trechos contínuos (vão > 8pt separa células) e manda cada um para a coluna de centro mais próximo. As células vêm centralizadas.
+  - A descrição da necessidade quebra em várias linhas acima e abaixo do registro e é descartada. Pedaço de nome numa linha à parte vai para o registro mais próximo na mesma página (até 12pt), antes ou depois do nome.
+  - Vírgula ou ponto e vírgula solto no fim do nome é retirado e listado em `ajustes`; linhas fora das colunas vão para `ignoradas`. Os dois aparecem no aviso do passo.
+  - Sem nascimento, Convocação e Classificação dão um aviso único quando **nenhum** inscrito tem data (em vez de listar todos). No quadro de 7 colunas, linha com 7 campos é lida como formato com nascimento mesmo com o campo vazio (`lerQuadroLista`).
+
 ### Gerador do Edital de Convocação para Entrevista — `residencia_convocacao.html`
 
 | | |

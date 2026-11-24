@@ -16,6 +16,10 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.30", data:"2026-11-24", titulo:"Residência: leitura da planilha de inscritos exportada do Excel",
+    itens:["A Convocação para Entrevista, a Classificação Final e o Hércules da Residência passam a reconhecer o PDF da planilha de inscritos exportada do Excel (Nº, Modalidade, CPF, Nome Completo, Descricao Necessidade, Celular, E-mail). A Lista de dados de sempre continua aceita e é tentada primeiro.",
+           "A leitura é por coluna: a descrição da necessidade, que ocupa várias linhas, não se mistura com o nome, e um nome quebrado em duas linhas é remontado. A coluna \"Descricao Necessidade\" não é usada. Linhas fora das colunas e vírgula ou ponto e vírgula solto no fim de um nome (retirado) geram aviso.",
+           "Essa planilha não tem data de nascimento. Na Convocação e na Classificação, um aviso único no Passo 1 diz que o desempate por idade não é automático, em vez de listar todos os inscritos sem data. Os empates continuam sinalizados no Passo 3."] },
   { v:"3.29", data:"2026-11-11", titulo:"Ponto 18: botão para reordenar os convocados por ordem alfabética",
     itens:["Novo botão \"Reordenar por ordem alfabética\" no passo 2, ao lado de \"Reordenar por nota\". Como o de nota, ele ordena dentro de cada data/grupo e do \"A atribuir\", sem tirar ninguém do bloco. Acentos e maiúsculas não contam, e linhas sem nome vão para o fim.",
            "Nos blocos com \"um horário por candidato\" que já tinham horários, eles são refeitos na nova ordem a partir do \"a partir de\" e do intervalo do bloco. Uma nota ao lado dos botões diz em quais blocos os horários foram refeitos, ou por que não foram (horário inicial inválido)."] },

@@ -263,7 +263,118 @@ function reconhecerLista(linhas){
     if(/[A-Za-zÀ-ÿ]/.test(l.txt)) ignoradas.push(l.txt);
   });
 
-  return { registros, ignoradas };
+  // nada reconhecido: pode ser a planilha exportada do Excel, sem nascimento
+  if(!registros.length){
+    const p = reconhecerPlanilha(linhas);
+    if(p.registros.length) return { registros:p.registros, ignoradas:p.ignoradas, ajustes:p.ajustes, formato:'planilha' };
+  }
+  return { registros, ignoradas, formato:'lista' };
+}
+
+/* Planilha de inscritos exportada do Excel (em uso desde 11/2026):
+   Nº | Modalidade (inscrição) | CPF | Nome Completo | Descricao Necessidade |
+   Celular | E-mail. Não tem a data de nascimento, que é o marco do leitor
+   acima — por isso a leitura aqui é por COLUNA. As células vêm centralizadas
+   e a descrição da necessidade quebra em várias linhas, acima e abaixo do
+   registro: o cabeçalho dá o centro de cada coluna, e cada trecho contínuo de
+   texto da linha vai para a coluna de centro mais próximo. Só entra em ação
+   quando o leitor da Lista de dados não reconhece nada (ver reconhecerLista). */
+const COLUNAS_PLANILHA = [
+  ['num', /^N[º°O]$/], ['modalidade', /^MODALIDADE$/], ['cpf', /^CPF$/], ['nome', /^NOME$/],
+  ['necessidade', /^DESCRICAO$/], ['celular', /^CELULAR$/], ['email', /^E-?MAIL$/]
+];
+const RE_CPF_CELULA = /^(\d{9,11}|\d{3}\.\d{3}\.\d{3}-\d{2})$/;
+
+// Linha de cabeçalho da planilha -> [{k, centro}] | null. Cada coluna vai da
+// palavra-chave até a palavra-chave seguinte ("Nome Completo", "Descricao
+// Necessidade"). Cabeçalho com data de nascimento não é deste formato.
+function colunasDaPlanilha(linha){
+  const toks = linha.itens.map(i=>({ i, t:semAcento(i.str).toUpperCase() }));
+  if(toks.some(o=>/NASCIMENTO/.test(o.t))) return null;
+  const marcos = [];
+  toks.forEach((o,pos)=>{
+    const col = COLUNAS_PLANILHA.find(c=>c[1].test(o.t));
+    if(col && !marcos.some(m=>m.k===col[0])) marcos.push({ k:col[0], pos });
+  });
+  const tem = k => marcos.some(m=>m.k===k);
+  if(!tem('cpf') || !tem('nome') || !(tem('celular') || tem('email'))) return null;
+  return marcos.map((m,j)=>{
+    const fim = j+1<marcos.length ? marcos[j+1].pos : toks.length;
+    const itens = toks.slice(m.pos, fim).map(o=>o.i);
+    const ini = Math.min.apply(null, itens.map(i=>i.x));
+    const ult = Math.max.apply(null, itens.map(i=>i.x+i.w));
+    return { k:m.k, centro:(ini+ult)/2 };
+  });
+}
+
+// Trechos contínuos de texto da linha (vão maior que 8pt separa células) já
+// atribuídos à coluna de centro mais próximo: {coluna: texto}.
+function celulasDaLinha(linha, colunas){
+  const cel = {};
+  let trecho = null;
+  const fechar = ()=>{
+    if(!trecho) return;
+    const meio = (trecho.ini + trecho.fim)/2;
+    let melhor = colunas[0];
+    colunas.forEach(c=>{ if(Math.abs(c.centro-meio) < Math.abs(melhor.centro-meio)) melhor = c; });
+    cel[melhor.k] = limpar((cel[melhor.k] ? cel[melhor.k]+' ' : '') + trecho.txt.join(' '));
+  };
+  linha.itens.forEach(it=>{
+    if(trecho && it.x - trecho.fim <= 8){ trecho.txt.push(it.str); trecho.fim = Math.max(trecho.fim, it.x+it.w); return; }
+    fechar();
+    trecho = { ini:it.x, fim:it.x+it.w, txt:[it.str] };
+  });
+  fechar();
+  return cel;
+}
+
+function reconhecerPlanilha(linhas){
+  const registros = [];
+  const ignoradas = [];
+  const ajustes = [];       // nomes com vírgula/ponto e vírgula solto no fim
+  const pedacosNome = [];   // {txt, pag, y} — nome quebrado em mais de uma linha
+  let colunas = null;
+  const vinculo = [];       // {reg, pag, y, acima:[], abaixo:[]}
+  linhas.forEach(l=>{
+    const cab = colunasDaPlanilha(l);
+    if(cab){ colunas = cab; return; }
+    if(!colunas){ if(/[A-Za-zÀ-ÿ]/.test(l.txt)) ignoradas.push(l.txt); return; }
+    const cel = celulasDaLinha(l, colunas);
+    if(RE_CPF_CELULA.test(cel.cpf||'')){
+      const reg = {
+        num: /^\d{1,4}$/.test(cel.num||'') ? cel.num : '',
+        modalidade: cel.modalidade||'',
+        cpf: soDigitos(cel.cpf),
+        nome: (cel.nome||'').replace(/\s*[,;]$/,''),
+        nascimento: '',
+        celular: extrairTelefone(cel.celular||''),
+        email: (cel.email||'').indexOf('@')>=0 ? cel.email : ''
+      };
+      if(reg.nome!==(cel.nome||'')) ajustes.push(cel.nome);
+      registros.push(reg);
+      vinculo.push({ reg, pag:l.pag, y:l.y, acima:[], abaixo:[] });
+      return;
+    }
+    const chaves = Object.keys(cel);
+    if(chaves.length===1 && chaves[0]==='necessidade') return;   // coluna não usada
+    if(chaves.length===1 && chaves[0]==='nome'){ pedacosNome.push({ txt:cel.nome, pag:l.pag, y:l.y }); return; }
+    if(/[A-Za-zÀ-ÿ]/.test(l.txt)) ignoradas.push(l.txt);
+  });
+  // nome quebrado: cada pedaço vai para o registro mais próximo na mesma
+  // página (até 12pt), antes ou depois do nome conforme fique acima ou abaixo
+  pedacosNome.forEach(p=>{
+    let alvo = null;
+    vinculo.forEach(v=>{
+      if(v.pag!==p.pag || Math.abs(v.y-p.y) > 12) return;
+      if(!alvo || Math.abs(v.y-p.y) < Math.abs(alvo.y-p.y)) alvo = v;
+    });
+    if(!alvo){ ignoradas.push(p.txt); return; }
+    (p.y > alvo.y ? alvo.acima : alvo.abaixo).push(p.txt);
+  });
+  vinculo.forEach(v=>{
+    if(v.acima.length || v.abaixo.length) v.reg.nome = limpar(v.acima.concat([v.reg.nome], v.abaixo).join(' '));
+  });
+  return { registros, ignoradas, ajustes };
 }
 
 function listaParaTexto(registros){
@@ -281,10 +392,11 @@ function lerQuadroLista(texto){
     if(/^N[ºo°]?\s+Modalidade/i.test(linha)) return;
     const porTab = linha.split('\t').map(s=>s.trim());
     if(porTab.length>=5){
-      // campo 5 (índice 4) é a Data de Nascimento quando parece uma data;
-      // senão, é um quadro no formato antigo (sem essa coluna) — aceito pra
-      // não quebrar rascunho ou texto colado de antes desta mudança.
-      if(RE_DATA.test(porTab[4]||'')){
+      // campo 5 (índice 4) é a Data de Nascimento quando parece uma data, ou
+      // quando a linha tem as 7 colunas (a planilha do Excel deixa o campo
+      // vazio); senão, é um quadro no formato antigo (sem essa coluna) —
+      // aceito pra não quebrar rascunho ou texto colado de antes desta mudança.
+      if(porTab.length>=7 || RE_DATA.test(porTab[4]||'')){
         registros.push({
           num: porTab[0], modalidade: porTab[1], cpf: soDigitos(porTab[2]),
           nome: limpar(porTab[3]), nascimento: porTab[4],
@@ -750,7 +862,18 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
       }
       cvTexto.value = listaParaTexto(r.registros);
       let msg = '<strong>'+r.registros.length+' inscrito(s)</strong> reconhecido(s). Confira o quadro abaixo antes de processar.';
-      status(cvStatus, msg, 'ok');
+      if(r.formato==='planilha'){
+        msg += '<br>Formato: planilha de inscritos exportada do Excel, <strong>sem data de nascimento</strong>. A coluna “Descricao Necessidade” não é usada por esta ferramenta.';
+        if(r.ajustes.length){
+          msg += '<br><strong style="color:var(--stamp-red)">'+r.ajustes.length+' nome(s) com vírgula ou ponto e vírgula solto no fim</strong> — o sinal foi retirado; confira:';
+          msg += lista(r.ajustes, n=>'<li>'+esc(n)+'</li>', 8);
+        }
+        if(r.ignoradas.length){
+          msg += '<br><strong style="color:var(--stamp-red)">'+r.ignoradas.length+' linha(s) do PDF fora das colunas da planilha</strong> — não entraram no quadro:';
+          msg += lista(r.ignoradas, n=>'<li>'+esc(n)+'</li>', 8);
+        }
+      }
+      status(cvStatus, msg, (r.formato==='planilha' && (r.ignoradas.length || r.ajustes.length)) ? 'warn' : 'ok');
       conferirPasso1();
     }catch(e){
       status(cvStatus, 'Não foi possível ler o PDF ('+esc(e.message||e)+'). Cole a lista no quadro abaixo.', 'warn');
@@ -809,7 +932,11 @@ if(typeof document !== 'undefined' && document.getElementById('cvBtnProcessar'))
       msg += '<br>Atenção: '+duplicados.length+' nome(s) repetido(s) na lista — confira se não é a mesma pessoa duas vezes.';
     }
     const semNasc = estado.inscritos.filter(i=>!i.nascimento).map(i=>i.nome);
-    if(semNasc.length){
+    // lista sem nenhuma data (a planilha do Excel não tem a coluna): um aviso
+    // só, em vez de repetir todos os nomes
+    if(semNasc.length && semNasc.length===estado.inscritos.length){
+      msg += '<br><strong style="color:var(--stamp-red)">A lista não traz data de nascimento</strong> — o desempate por idade não é automático no Passo 3. Empates na nota continuam sinalizados lá para ajuste manual.';
+    } else if(semNasc.length){
       msg += '<br><strong style="color:var(--stamp-red)">'+semNasc.length+' inscrito(s) sem data de nascimento reconhecida</strong> — sem idade pra desempate no Passo 3:';
       msg += lista(semNasc, n=>'<li>'+esc(n)+'</li>');
     }
