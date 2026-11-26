@@ -16,6 +16,10 @@
    em diante são escritas à mão, junto com o commit da versão. */
 
 const CHANGELOG = [
+  { v:"3.30.1", data:"2026-11-26", titulo:"Pontos 18 e 20: tabela pronta para colar no Athos (borda, espaçamento e negrito)",
+    itens:["A tabela do bloco de conteúdo do Athos passa a levar a borda também como atributo da tabela, como a do Ponto 20. O Athos apaga a formatação de estilo ao colar, e a borda sumia. O PDF não muda.",
+           "O bloco de conteúdo já sai com as linhas em branco que eram acrescentadas à mão: uma antes da frase de abertura, uma entre ela e a linha DATA: e uma depois da última linha.",
+           "Ponto 20: o cabeçalho da tabela copiada passa a manter o negrito ao colar no Athos, sem precisar reaplicar."] },
   { v:"3.30", data:"2026-11-24", titulo:"Residência: leitura da planilha de inscritos exportada do Excel",
     itens:["A Convocação para Entrevista, a Classificação Final e o Hércules da Residência passam a reconhecer o PDF da planilha de inscritos exportada do Excel (Nº, Modalidade, CPF, Nome Completo, Descricao Necessidade, Celular, E-mail). A Lista de dados de sempre continua aceita e é tentada primeiro.",
            "A leitura é por coluna: a descrição da necessidade, que ocupa várias linhas, não se mistura com o nome, e um nome quebrado em duas linhas é remontado. A coluna \"Descricao Necessidade\" não é usada. Linhas fora das colunas e vírgula ou ponto e vírgula solto no fim de um nome (retirado) geram aviso.",

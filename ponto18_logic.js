@@ -1429,7 +1429,10 @@ function celulaTexto(c, col){
 
 // Sem `listaDada`/`colsDadas`, monta a tabela única com todos os alocados.
 // Com eles, monta a tabela de um só dia (modo "Um local por tabela").
-function tabelaHtml(lh, listaDada, colsDadas){
+// `paraAthos`: a borda vai também nos atributos da tabela (border="1"…), como
+// na tabela que o Ponto 20 copia. O Athos descarta o atributo style ao colar,
+// e a borda feita só por CSS sumia; o atributo ele preserva. O PDF não usa.
+function tabelaHtml(lh, listaDada, colsDadas, paraAthos){
   var lhCel=lh||LH_CELULA;
   var cols=colsDadas||colunasAtivas();
   // só os alocados entram no documento; quem ficou em "A atribuir" é apontado
@@ -1464,7 +1467,8 @@ function tabelaHtml(lh, listaDada, colsDadas){
   // max-width:100% é a trava final: se ainda assim a soma das colunas passar da
   // área útil (nomes longos, link e horário juntos), a tabela encolhe para caber
   // na folha em vez de vazar a margem.
-  var h='<table style="border-collapse:collapse;table-layout:fixed;max-width:100%;'
+  var h='<table'+(paraAthos ? ' border="1" cellspacing="0" cellpadding="4"' : '')
+       +' style="border-collapse:collapse;table-layout:fixed;max-width:100%;'
        +'width:'+larguraTabela+';margin:32pt 0 28pt '+RECUO_TABELA_PT+'pt;">';
   h+='<colgroup>'+cols.map(function(c){
         return '<col style="width:'+(c.k==='nome' && larguraTabela==='100%' ? 'auto' : largura[c.k]+'pt')+';">';
@@ -1495,7 +1499,8 @@ function tabelaHtml(lh, listaDada, colsDadas){
    (passo 5) — no Athos, precedido da frase de abertura da SGP.  */
 // `lh` é a entrelinha dos parágrafos e `lhCel` a das células da tabela: o
 // documento do passo 4 usa as medidas dos modelos; o Bloco 4 do Athos, simples.
-function conteudoHtml(lh, lhCel){
+// `paraAthos` liga a borda por atributo na tabela (ver tabelaHtml).
+function conteudoHtml(lh, lhCel, paraAthos){
   var d=estado.doc, h='';
   // O parágrafo é de texto normal: o negrito fica SÓ na etiqueta (DATA:,
   // HORÁRIO:, LOCAL:, ENDEREÇO:, OBSERVAÇÕES:), nunca no que foi digitado.
@@ -1527,7 +1532,7 @@ function conteudoHtml(lh, lhCel){
         h+=linha('LOCAL:', esc(normalizarModalidade(d.modalidade))+' | '+esc(comPontoFinal(dia.local)));
       if(String(dia.endereco||'').trim())
         h+=linha('ENDEREÇO:', enderecoHtml(dia.endereco));
-      h+=tabelaHtml(lhCel, comNome(linhasDoDia(dia.id)), colunasDoDia(dia));
+      h+=tabelaHtml(lhCel, comNome(linhasDoDia(dia.id)), colunasDoDia(dia), paraAthos);
     });
     if(!dias.length) h+=respiro;
   } else {
@@ -1552,7 +1557,7 @@ function conteudoHtml(lh, lhCel){
     }
 
     // tabela dos convocados (sem convocados, mantém o respiro entre os blocos)
-    h += tabelaHtml(lhCel) || respiro;
+    h += tabelaHtml(lhCel, null, null, paraAthos) || respiro;
   }
 
   // observações (cada linha digitada vira um parágrafo; só a etiqueta é negrito)
@@ -1797,9 +1802,17 @@ function montarBlocosAthos(){
 
   // 5 — Conteúdo: frase de abertura da SGP + o mesmo miolo do PDF, em entrelinha
   // simples. Aqui as margens estruturais ficam (a folga antes e depois da
-  // tabela vem dos modelos e separa as partes do edital).
-  b[5]='<p style="margin:0 0 14pt;text-align:justify;font-weight:normal;'+CORPO_A+'">'+esc(FRASE_ABERTURA)+'</p>'
-     + conteudoHtml(LH_SIMPLES, LH_SIMPLES);
+  // tabela vem dos modelos e separa as partes do edital). Como o Athos descarta
+  // as margens junto com o style, o espaçamento que ele precisa vai em
+  // parágrafos vazios de verdade: um antes da frase de abertura, um entre ela e
+  // o miolo (antes de DATA:) e um depois da última linha — era o Enter que se
+  // acrescentava à mão a cada publicação.
+  var VAZIO_A='<p style="'+P_E_A_N+'">&nbsp;</p>';
+  b[5]=VAZIO_A
+     + '<p style="margin:0 0 14pt;text-align:justify;font-weight:normal;'+CORPO_A+'">'+esc(FRASE_ABERTURA)+'</p>'
+     + VAZIO_A
+     + conteudoHtml(LH_SIMPLES, LH_SIMPLES, true)
+     + VAZIO_A;
 
   // 6 — Data: só a data por extenso. A cidade e o ponto final são postos pelo
   // próprio Athos no campo dele, e vinham duplicados na publicação.

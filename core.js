@@ -172,8 +172,10 @@ window.TJPRCore = (function(){
     const cellStyle = 'border:1pt solid #000000;text-align:left;padding:4px 8px;font-weight:normal;';
     const headerStyle = 'border:1pt solid #000000;text-align:left;padding:4px 8px;font-weight:bold;';
     let html = '<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;">';
+    // negrito também na tag <b>: o Athos (como outros editores) descarta o
+    // atributo style ao colar e, com ele, o font-weight — a tag ele preserva
     html += '<tr>' + cols.map(c =>
-      '<td style="' + headerStyle + '">' + escapeHtml(c) + '</td>'
+      '<td style="' + headerStyle + '"><b>' + escapeHtml(c) + '</b></td>'
     ).join('') + '</tr>';
     rows.forEach(r => {
       html += '<tr>' + cols.map(c =>
