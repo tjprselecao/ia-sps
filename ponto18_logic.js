@@ -1510,6 +1510,11 @@ function conteudoHtml(lh, lhCel, paraAthos){
   }
 
   var respiro='<p style="margin:0 0 28pt;line-height:'+(lh||LH_DOC)+';">&nbsp;</p>';
+  // No Athos, a folga de 32pt/28pt em volta da tabela some com o style: ela vai
+  // num parágrafo vazio antes (depois do ENDEREÇO:) e outro depois (antes de
+  // OBSERVAÇÕES:). O PDF continua só com as margens.
+  var vazio='<p style="'+P+'">&nbsp;</p>';
+  function comFolga(tab){ return (paraAthos && tab) ? vazio+tab+vazio : tab; }
   var dias=diasComCandidatos();
 
   if(usaLocalPorTabela()){
@@ -1532,7 +1537,7 @@ function conteudoHtml(lh, lhCel, paraAthos){
         h+=linha('LOCAL:', esc(normalizarModalidade(d.modalidade))+' | '+esc(comPontoFinal(dia.local)));
       if(String(dia.endereco||'').trim())
         h+=linha('ENDEREÇO:', enderecoHtml(dia.endereco));
-      h+=tabelaHtml(lhCel, comNome(linhasDoDia(dia.id)), colunasDoDia(dia), paraAthos);
+      h+=comFolga(tabelaHtml(lhCel, comNome(linhasDoDia(dia.id)), colunasDoDia(dia), paraAthos));
     });
     if(!dias.length) h+=respiro;
   } else {
@@ -1557,7 +1562,7 @@ function conteudoHtml(lh, lhCel, paraAthos){
     }
 
     // tabela dos convocados (sem convocados, mantém o respiro entre os blocos)
-    h += tabelaHtml(lhCel, null, null, paraAthos) || respiro;
+    h += comFolga(tabelaHtml(lhCel, null, null, paraAthos)) || respiro;
   }
 
   // observações (cada linha digitada vira um parágrafo; só a etiqueta é negrito)

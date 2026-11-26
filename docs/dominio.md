@@ -112,7 +112,7 @@ O Edital de Abertura oferece, para a convocação à entrevista, duas redações
   - as classes são convertidas em atributos `align="…"` e `<b>` de verdade (`aplicarEstilosInline`/`htmlComEstilosInline`);
   - tabelas levam `border="1"`, porque a borda de 0,5pt sumia no PDF;
   - a borda feita só por CSS some ao colar. O atributo `border="1" cellspacing="0" cellpadding="4"` sobrevive: é o que o Ponto 20 (`buildCleanTableHTML`) sempre usou e, desde a v3.30.1, o bloco de conteúdo do Ponto 18;
-  - margens (`margin`) também somem: o espaçamento que o documento precisa no Athos vai em parágrafos vazios (`<p>&nbsp;</p>`). No Ponto 18 são três: antes da frase de abertura, antes de DATA: e depois da última linha.
+  - margens (`margin`) também somem: o espaçamento que o documento precisa no Athos vai em parágrafos vazios (`<p>&nbsp;</p>`). No Ponto 18: antes da frase de abertura, antes de DATA:, antes e depois de cada tabela e depois da última linha.
 - **`EDITAL N° $$(numerar automaticamente)%%`:** marcador que o Athos troca pela numeração ao salvar. Se o usuário informar só o número (ex.: `2870/2026`), a ferramenta acrescenta "EDITAL N°".
 - **Colar no editor do SEI:** copie HTML limpo, por um ouvinte de `copy` como em `edital_logic.js`. Copiar a seleção viva da página leva junto o fundo cinza.
 - **Fontes dos documentos:** cada documento segue o modelo oficial. Calibri/Carlito no Edital e no Ponto 14, Times New Roman 11pt na Residência, Arial/Helvetica no Resultado Final. **Não mude sem pedido.**

@@ -18,7 +18,7 @@
 const CHANGELOG = [
   { v:"3.30.1", data:"2026-11-26", titulo:"Pontos 18 e 20: tabela pronta para colar no Athos (borda, espaçamento e negrito)",
     itens:["A tabela do bloco de conteúdo do Athos passa a levar a borda também como atributo da tabela, como a do Ponto 20. O Athos apaga a formatação de estilo ao colar, e a borda sumia. O PDF não muda.",
-           "O bloco de conteúdo já sai com as linhas em branco que eram acrescentadas à mão: uma antes da frase de abertura, uma entre ela e a linha DATA: e uma depois da última linha.",
+           "O bloco de conteúdo já sai com as linhas em branco que eram acrescentadas à mão: uma antes da frase de abertura, uma entre ela e a linha DATA:, uma antes e outra depois da tabela (entre ENDEREÇO: e a tabela, e entre a tabela e OBSERVAÇÕES:) e uma depois da última linha.",
            "Ponto 20: o cabeçalho da tabela copiada passa a manter o negrito ao colar no Athos, sem precisar reaplicar."] },
   { v:"3.30", data:"2026-11-24", titulo:"Residência: leitura da planilha de inscritos exportada do Excel",
     itens:["A Convocação para Entrevista, a Classificação Final e o Hércules da Residência passam a reconhecer o PDF da planilha de inscritos exportada do Excel (Nº, Modalidade, CPF, Nome Completo, Descricao Necessidade, Celular, E-mail). A Lista de dados de sempre continua aceita e é tentada primeiro.",

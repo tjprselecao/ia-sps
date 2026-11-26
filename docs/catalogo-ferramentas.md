@@ -129,7 +129,7 @@ Uma ficha por página. As funções citadas estão no `_logic.js` da ferramenta,
 
 **Saídas**
 - Documento com logotipo (PDF por impressão).
-- 7 blocos do Athos (os blocos 2 a 4 em texto puro, `BLOCOS_TEXTO_PURO`). No bloco 5 (conteúdo), `conteudoHtml(…, paraAthos)` põe `border="1" cellspacing="0" cellpadding="4"` na tabela, porque o Athos apaga o `style`. O bloco também ganha parágrafos vazios antes da frase de abertura, antes do miolo (DATA:) e no fim (v3.30.1). O PDF do passo 4 não usa nada disso.
+- 7 blocos do Athos (os blocos 2 a 4 em texto puro, `BLOCOS_TEXTO_PURO`). No bloco 5 (conteúdo), `conteudoHtml(…, paraAthos)` põe `border="1" cellspacing="0" cellpadding="4"` na tabela, porque o Athos apaga o `style`. O bloco também ganha parágrafos vazios antes da frase de abertura, antes do miolo (DATA:), antes e depois de cada tabela (`comFolga`) e no fim (v3.30.1). O PDF do passo 4 não usa nada disso.
 - Lista de e-mails separada por `; ` e assunto do e-mail.
 - Rascunho .json (`ponto18`, **versao 2**, com migração da 1). É a referência de rascunho. Desde a v3.25, os dias levam `local`/`endereco` (e `titulo`, na v3.25.1) e o `doc` leva `localPorTabela`; um rascunho antigo abre com a opção desligada.
 
